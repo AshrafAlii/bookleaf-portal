@@ -77,24 +77,33 @@ builds the SPA, builds the jar, runs the migrations and seeds the sample data.
 Requires JDK 21+, Maven 3.9+, Node 20+ and a PostgreSQL 14+ instance.
 
 ```bash
-# 1. Database
+./scripts/setup.sh          # .env, the databases and npm install
+./scripts/dev-backend.sh     # terminal 1 — http://localhost:8080
+./scripts/dev-frontend.sh    # terminal 2 — http://localhost:5173
+```
+
+`setup.sh` creates the `.env` file, the PostgreSQL role and both the `bookleaf` and
+`bookleaf_test` databases, and installs the frontend dependencies. The Vite dev server proxies
+`/api` to the backend, so the browser only ever talks to one origin and the refresh cookie works
+without any CORS setup.
+
+<details>
+<summary>Manual equivalent</summary>
+
+```bash
 createdb bookleaf
 psql -d postgres -c "CREATE ROLE bookleaf LOGIN PASSWORD 'bookleaf';"
 
-# 2. Backend on :8080
 cd backend
 DB_URL=jdbc:postgresql://localhost:5432/bookleaf \
 DB_USERNAME=bookleaf DB_PASSWORD=bookleaf \
 JWT_SECRET=local-dev-secret-at-least-32-characters-long \
 mvn spring-boot:run
 
-# 3. Frontend on :5173 (proxies /api to :8080)
-cd ../frontend
-npm install
-npm run dev
+cd ../frontend && npm install && npm run dev
 ```
 
-Open http://localhost:5173.
+</details>
 
 ### Option C — Run the API only, with the built SPA served by Spring Boot
 
@@ -108,7 +117,8 @@ cd ../backend && mvn spring-boot:run     # http://localhost:8080
 ### Configuration
 
 All configuration is environment driven; nothing sensitive is compiled in. Copy
-[`backend/.env.example`](backend/.env.example) for the full list.
+[`.env.example`](.env.example) to `.env` for the full list — `scripts/setup.sh` does this for you.
+`.env` is gitignored.
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -461,11 +471,11 @@ do not close idle connections.
 ## Testing
 
 ```bash
-cd backend
-mvn test
+cd backend && mvn test       # 35 backend tests
+cd frontend && npm test      # 13 frontend tests
 ```
 
-35 tests, all passing:
+Backend — 35 tests, all passing:
 
 | Suite | What it covers |
 |---|---|
@@ -482,6 +492,9 @@ truncated between tests. Point it elsewhere with `TEST_DB_URL`.
 Two bugs were found by these tests during development and fixed: the retrieval scorer was letting
 calibration examples crowd out the actual policy sections, and a `can I update …` query was being
 scored Medium instead of Low.
+
+The frontend has 13 unit tests covering the formatting helpers (including the "null means not
+applicable, never a fake zero" rule) and the query-string builder.
 
 ---
 
