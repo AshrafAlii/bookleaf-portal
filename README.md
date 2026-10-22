@@ -105,6 +105,24 @@ cd ../frontend && npm install && npm run dev
 
 </details>
 
+### Option D — IntelliJ IDEA
+
+A dedicated step-by-step guide (import, JDK 21, database, `.env`, run configuration, the
+frontend, and troubleshooting) is in **[docs/INTELLIJ.md](docs/INTELLIJ.md)**.
+
+Short version:
+
+```bash
+./scripts/setup.sh          # .env, the databases, npm install
+```
+
+1. IntelliJ → **File → Open** → the `backend/` folder (so IntelliJ detects the Maven project).
+2. **File → Project Structure** → SDK → **21**.
+3. **Run → Edit Configurations** → `+` → **Spring Boot** → main class
+   `com.bookleaf.portal.BookLeafPortalApplication`, working directory = the **repository root**
+   (so the `.env` is found), JRE 21.
+4. Run it. Then in the terminal: `cd frontend && npm run dev` → http://localhost:5173
+
 ### Option C — Run the API only, with the built SPA served by Spring Boot
 
 ```bash
@@ -656,6 +674,7 @@ bookleaf/
 ├── data/bookleaf_sample_data.json    The supplied dataset, verbatim
 ├── docs/
 │   ├── API.md                    Endpoint reference
+│   ├── INTELLIJ.md               Step-by-step IntelliJ IDEA guide
 │   ├── WRITEUP.md                One-page approach note
 │   └── screenshots/
 ├── backend/
