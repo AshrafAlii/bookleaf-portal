@@ -85,7 +85,7 @@ public class AiGateway {
         }
 
         String model = modelName(request.purpose());
-        String cacheKey = cacheKey(request.purpose(), model, request.userPrompt());
+        String cacheKey = cacheKey(request.purpose(), model, request.systemPrompt(), request.userPrompt());
 
         Optional<AiCacheEntry> cached = cacheRepository.findByCacheKey(cacheKey);
         if (cached.isPresent()) {
@@ -125,10 +125,20 @@ public class AiGateway {
         }
     }
 
-    private String cacheKey(String purpose, String model, String userPrompt) {
+    /**
+     * Cache key over the full request.
+     *
+     * <p>Both the system and the user prompt are included: changing a prompt must
+     * invalidate the cached answers it produced, otherwise a prompt fix would
+     * silently keep serving the old results. The user prompt already contains the
+     * retrieved knowledge base, so editing the knowledge base invalidates the
+     * cache for free.</p>
+     */
+    private String cacheKey(String purpose, String model, String systemPrompt, String userPrompt) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update((purpose + "\n" + model + "\n" + userPrompt).getBytes(StandardCharsets.UTF_8));
+            digest.update((purpose + "\n" + model + "\n" + systemPrompt + "\n" + userPrompt)
+                    .getBytes(StandardCharsets.UTF_8));
             return purpose.toLowerCase() + ":" + HexFormat.of().formatHex(digest.digest()).substring(0, 32);
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 unavailable", ex);

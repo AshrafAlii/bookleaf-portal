@@ -34,6 +34,30 @@ The two decisions I would point at in a review:
   states the grounding rule explicitly. That is why drafts quote *“₹3,570 pending”* instead of
   *“your royalty is being processed”*, and why they own BookLeaf's mistakes rather than deflecting.
 
+### What the measurements changed
+
+I built a small labelled benchmark (`scripts/measure_triage.py`, ten tickets across all six
+categories and all four priorities) and ran it against a **free local Llama 3.1 8B** served by
+Ollama — no paid API key needed.
+
+The first version of the triage prompt described the priority rubric in prose. It classified
+**perfectly** (10/10 on category) but scored priority at only **3/10**: it systematically
+under-prioritised, answering Medium almost every time, because a prose rubric leaves a small
+model too much room to interpret.
+
+Rewriting the prompt as three explicit steps — *pick the category → take that category's default
+priority → escalate only on a stated concrete fact* — moved priority to **10/10** without touching
+the category rules. Nothing about the model or the code changed; only the prompt, and only because
+the measurement said so.
+
+The same loop caught two real bugs: the AI cache key ignored the system prompt (so a prompt fix
+kept serving stale answers — the benchmark "improved" from 3/10 to 10/10 only after I cleared the
+cache and re-ran), and `AI_PROVIDER=none` was silently ignored.
+
+The measured baseline for the deterministic fallback is **10/10 category, 8/10 priority** — the
+rules alone are competitive, which is what makes the fallback a genuine safety net rather than a
+straw man.
+
 **2. Graceful degradation, as a designed path rather than a catch-all.** If the provider is down,
 rate limited or simply not configured, the ticket is still created, the fallback classifier
 decides the category and priority (and says so — the UI marks it *Fallback*), and the admin writes
@@ -89,10 +113,12 @@ thing:
 ## How I would evolve it
 
 **With more time on the AI**, the biggest wins are evaluation and grounding rather than more
-prompts: a small labelled set of historical tickets with the category a human gave them, scored
-as precision/recall per category so regressions are caught before they reach authors; retrieval
-measured the same way, so the knowledge base can be pruned of sections nobody needs; and a
-structured "escalate to a human" signal so the model knows when *not* to answer.
+prompts: the ten-ticket benchmark should become fifty to a hundred tickets labelled by the ops
+team, scored as precision/recall per category so regressions are caught before they reach
+authors; retrieval should be measured the same way, so the knowledge base can be pruned of
+sections nobody needs; and there should be a structured "escalate to a human" signal so the model
+knows when *not* to answer. A stronger hosted model is the cheapest possible upgrade here — the
+prompt, retrieval and grounding are already in place.
 
 **With more time on the platform**, the queue needs bulk triage and saved filters (an ops team
 works in batches, not one ticket at a time), SLA policies that escalate automatically rather than
@@ -107,11 +133,21 @@ it) and a self-service royalty statement the author can download.
 
 ## Honest notes
 
-- The AI path was developed and verified against a deterministic mock provider and the fallback
-  rules; it has been wired for Anthropic and OpenAI, and the provider boundary is tested, but I
-  have not run it against a live key in this environment.
-- The SSE "Live" indicator can show *Offline* if a browser has exhausted its six concurrent
-  connections per origin — an artefact of opening many tabs, not a defect, but it is the kind of
+- **The AI was developed and verified against a free local Llama 3.1 8B (Ollama), not a paid
+  cloud model.** It is a genuinely small model, and the drafts show it: it occasionally slips on
+  arithmetic ("it has been six months since then" for a title published three years ago) and
+  still leans a little too hard on quoting policy. A stronger hosted model — Claude Haiku or
+  `gpt-4o-mini`, both cheap — is configured and expected to be noticeably better on the draft
+  quality; I had no paid key available in this environment, so that claim is an expectation, not
+  a measurement. The provider boundary, the gateway, the caching and the prompt design are all
+  model-agnostic and were exercised end to end.
+- **The draft is a draft.** The admin edits before sending, which is the intended workflow — the
+  model proposes, the human disposes.
+- **The SSE "Live" indicator can show *Offline* if a browser has exhausted its six concurrent
+  connections per origin** — an artefact of opening many tabs, not a defect, but it is the kind of
   thing worth knowing before a demo.
-- The seeded demo tickets are realistic but invented; the ten authors and eighteen books are the
-  supplied data, verbatim.
+- **The seeded demo tickets are realistic but invented;** the ten authors and eighteen books are
+  the supplied data, verbatim.
+- **The benchmark is ten tickets.** Enough to catch a systematic prompt failure (which is exactly
+  what it caught), not enough to call the model "accurate". The next step would be fifty to a
+  hundred tickets labelled by the ops team, scored per category.

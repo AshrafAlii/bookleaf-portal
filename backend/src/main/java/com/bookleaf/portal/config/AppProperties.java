@@ -236,6 +236,7 @@ public class AppProperties {
         public String resolvedProvider() {
             String configured = provider == null ? "auto" : provider.toLowerCase();
             return switch (configured) {
+                case "none", "off", "disabled" -> "none";
                 case "anthropic" -> hasAnthropicKey() ? "anthropic" : "none";
                 case "openai" -> hasOpenAiKey() ? "openai" : "none";
                 default -> {

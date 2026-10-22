@@ -8,6 +8,11 @@ server:
 spring:
   application:
     name: bookleaf-portal
+  config:
+    # Allow a plain `.env` file (KEY=value) to supply configuration, so the app can
+    # be started with `mvn spring-boot:run` without exporting variables by hand.
+    # Environment variables still take precedence over the file.
+    import: "optional:file:.env[.properties],optional:file:../.env[.properties]"
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/bookleaf}
     username: ${DB_USERNAME:bookleaf}

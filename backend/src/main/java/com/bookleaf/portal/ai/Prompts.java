@@ -36,7 +36,10 @@ public final class Prompts {
               "signals": ["<short keyword phrase>", "<up to 5 total>"]
             }
 
-            CATEGORY CODES (use these exactly)
+            WORK IN THREE STEPS
+
+            STEP 1 — choose the category.
+            CATEGORY CODES (use these exactly):
             ROYALTY_PAYMENTS - royalty amounts, royalty payments, payouts, statements, revenue splits, delayed or missing payments
             ISBN_METADATA - ISBN issues, duplicate ISBN, mismatched ISBN, metadata, description, title or catalogue data errors
             PRINTING_QUALITY - print quality, paper, binding, misprints, damaged copies, page alignment, reprints
@@ -44,17 +47,27 @@ public final class Prompts {
             PRODUCTION_UPDATES - production stage, typesetting, cover design, proofreading, editing, publication timeline
             GENERAL_INQUIRY - everything else: bio updates, description updates after publication, how-to questions, greetings, feature requests
 
-            PRIORITY RUBRIC
-            CRITICAL - money or contractual impact that is already lost or badly overdue: royalties unpaid beyond the 45-day payout window, royalty amounts disputed as incorrect, an ISBN that is registered to the wrong book, the author is legally or commercially blocked from publishing.
-            HIGH - a live, time-sensitive operational impact: the book shows as unavailable on a store, defective copies were shipped to the author, production has stalled beyond the published timeline, an ISBN error has been reported.
-            MEDIUM - an active request that needs a normal reply within a couple of working days.
-            LOW - informational, cosmetic, or a future-dated question with no current impact on the author.
+            STEP 2 — take the DEFAULT priority for that category:
+            ROYALTY_PAYMENTS        -> MEDIUM
+            ISBN_METADATA           -> HIGH
+            PRINTING_QUALITY        -> HIGH
+            DISTRIBUTION_AVAILABILITY -> MEDIUM
+            PRODUCTION_UPDATES      -> MEDIUM
+            GENERAL_INQUIRY         -> LOW
+
+            STEP 3 — escalate ONLY when the author states a concrete fact.
+            Escalate to CRITICAL when the author says a payment is overdue, unpaid or missing
+              AND gives a period of time or a number of copies
+              (for example: "6 months", "two quarters", "never received", "not been paid since March").
+            Escalate to HIGH when the author says the book is late, stuck, unavailable or defective
+              AND gives a period of time or states they cannot buy or read it
+              (for example: "3 weeks", "still in typesetting", "cannot buy it", "arrived broken").
+            Otherwise keep the default from STEP 2. Do not escalate on tone, politeness, length or anger.
+            ISBN_METADATA and PRINTING_QUALITY stay HIGH even without those extra facts —
+            BookLeaf policy escalates ISBN errors and defective copies by default.
 
             RULES
-            - Judge priority on the CONTENT of the ticket, not on its length, politeness or punctuation.
-            - If the author states a concrete fact that matches a CRITICAL or HIGH rubric line (a number of months, a missing payment, a defective copy, a wrong ISBN), use that rubric line even if the author is polite about it.
-            - If a ticket spans two categories, pick the one whose team owns the actual fix.
-            - The rationale must cite the specific phrase or number from the ticket.
+            - The rationale must cite the specific phrase or number from the ticket that drove the decision.
             - The rationale must not be empty.
             - Output raw JSON only. No markdown fences, no commentary before or after.
             """;
@@ -92,6 +105,9 @@ public final class Prompts {
             GROUNDING RULES
             - POLICY CONTEXT is the only source of BookLeaf policy you may state. Do not invent policies, timelines, fees or processes that are not written there.
             - ACCOUNT CONTEXT is the only source of facts about this author's books and royalties.
+            - Never state a figure, date, quarter, invoice number, threshold, or status that is not written in the context blocks. If the reply would be more complete with such a fact, write "we will confirm that and come back to you" instead of guessing it. Never speculate about why a specific amount is outstanding.
+            - Do not quote a policy clause that does not apply to this author's situation, and do not quote policy back to the author verbatim. Use the policy to decide what to say, then say it in your own words.
+            - Write to the author as "you". Where the author has to do something — for example confirming the bank details on their dashboard — say so plainly rather than promising to do it for them.
             - If the question is not covered by the context, do not guess. Say what you need to check internally and give a 48-hour timeline for a proper answer.
 
             FORMAT

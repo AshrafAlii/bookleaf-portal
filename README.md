@@ -128,7 +128,8 @@ All configuration is environment driven; nothing sensitive is compiled in. Copy
 | `SEED_ENABLED` | `true` | Seeds the supplied sample dataset and two demo admins. |
 | `SEED_AUTHOR_PASSWORD` / `SEED_ADMIN_PASSWORD` | `Author@1234` / `Admin@1234` | Demo passwords. |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | empty | Empty ⇒ the portal runs in deterministic fallback mode with no outbound calls. |
-| `AI_PROVIDER` | `auto` | `auto` picks whichever key is present; can be forced to `anthropic` or `openai`. |
+| `OPENAI_BASE_URL` | `https://api.openai.com` | Point at Ollama (`http://localhost:11434`) or any OpenAI-compatible endpoint. |
+| `AI_PROVIDER` | `auto` | `auto` picks whichever key is present; `anthropic`, `openai` or `none` to force one. |
 | `AI_KB_TOP_SECTIONS` | `3` | How many knowledge-base sections are retrieved per draft. |
 | `CORS_ALLOWED_ORIGINS` | localhost:5173 | Only needed if the SPA is served from a different origin. |
 
@@ -294,14 +295,43 @@ The system prompt states the grounding rule explicitly:
 This is why drafts contain real numbers (*“your ₹3,570 pending royalty”*) rather than
 *“your royalty is being processed”*, and why they own mistakes directly when BookLeaf is at fault.
 
+### Measured behaviour
+
+Accuracy was measured against a labelled set of ten tickets (covering all six categories and all
+four priorities) with `scripts/measure_triage.py`:
+
+| Provider | Category | Priority | Cost per ticket | Notes |
+|---|---|---|---|---|
+| **Llama 3.1 8B** (Ollama, free and local) | **10/10** | **10/10** | ~735 prompt + ~55 completion tokens | The model the app was tuned against |
+| **Heuristic fallback** (no AI at all) | **10/10** | 8/10 | 0 tokens, ~0 ms | The rules BookLeaf's policy implies |
+
+Prompt cost, measured from the usage log:
+
+| | Prompt tokens | Completion tokens | KB context | Latency (local 8B) |
+|---|---|---|---|---|
+| Triage | ~735 | ~55 | — | ~10 s |
+| Draft | ~1,472 | ~221 | 537 of 1,456 KB tokens | ~50 s |
+
+**The prompt was rewritten because the measurements said so.** The first version of the triage
+prompt described the priority rubric in prose. It classified perfectly (10/10 category) but scored
+priority at only **3/10** — it systematically under-prioritised, landing on Medium almost every
+time. The fix was to restructure the prompt into three explicit steps — *pick the category → take
+the category's default priority → escalate only on a stated concrete fact* — which moved priority
+accuracy to **10/10** without touching the category rules. The rubric, the escalation triggers and
+the category defaults are all visible in `Prompts.TRIAGE_SYSTEM`.
+
+Two further bugs were found this way and fixed: the AI cache key ignored the system prompt, so a
+prompt fix kept serving stale answers; and `AI_PROVIDER=none` was not honoured, so the AI could
+not be switched off for testing.
+
 ### Cost management
 
 | Technique | Effect |
 |---|---|
-| **Retrieval instead of dumping the KB** | The knowledge base is ~1,450 tokens. Retrieval sends the 2–3 relevant policy sections plus the short tone guide — typically ~350–500 tokens. The prompt stays under ~900 tokens. |
+| **Retrieval instead of dumping the KB** | The knowledge base is ~1,456 tokens. Retrieval sends the 2–3 relevant policy sections plus the short tone guide — 537 tokens of context instead of 1,456. |
 | **One triage call, not two** | Halves the cost of classifying every inbound ticket. |
 | **Capped output** | Triage is capped at 300 completion tokens, drafts at 700. |
-| **Content-addressed cache** | Results are cached under `sha256(purpose + model + prompt)`. Because the retrieved knowledge base is embedded in the prompt, editing the knowledge base automatically invalidates every cached answer. A repeated draft costs nothing. |
+| **Content-addressed cache** | Results are cached under `sha256(purpose + model + system prompt + user prompt)`. Because the retrieved knowledge base is embedded in the prompt, editing the knowledge base automatically invalidates every cached answer — and so does editing a prompt, which is exactly what you want. A repeated ticket costs nothing: 36 of 71 calls in the measurement run were served from the cache. |
 | **Cheap model for triage** | The triage model is configurable separately from the draft model (`AI_TRIAGE_MODEL` / `AI_DRAFT_MODEL`). |
 | **Usage accounting** | Every call is logged with prompt tokens, completion tokens, latency and success. The admin dashboard shows the totals, the cache-hit rate and the average latency — cost is visible, not assumed. |
 
@@ -338,12 +368,47 @@ The reasoning:
   and a rubric; drafting is a 150-word reply with a supplied context. Neither needs a frontier
   model, and the brief calls for cost-consciousness.
 - **The prompt asks for grounded prose, not reasoning.** The heavy lifting is done by the retrieval
-  and the account context, so a small model suffices.
+  and the account context, so a small model suffices — a **free local Llama 3.1 8B** classifies at
+  10/10 on the benchmark above.
 - **Provider neutrality is cheap insurance.** BookLeaf should not be locked to one vendor, and the
   gateway keeps the vendor boundary in one place (`AiClient`), so the rest of the application never
   depends on a vendor SDK.
 - **The model is configurable per job.** `AI_TRIAGE_MODEL` and `AI_DRAFT_MODEL` can point at
   different models, so triage can stay on the cheapest option while drafts use something stronger.
+
+### Running the AI for free
+
+The portal needs **no paid API key** to be fully functional. Three options, in order of
+recommendation:
+
+**1. A free local model via Ollama (recommended for development).** Ollama exposes an
+OpenAI-compatible API, so the existing OpenAI adapter talks to it with no code change:
+
+```bash
+brew install ollama
+ollama serve
+ollama pull llama3.1          # ~5 GB, runs fine on an 8 GB Apple Silicon machine
+```
+
+```bash
+# .env
+OPENAI_API_KEY=ollama
+OPENAI_BASE_URL=http://localhost:11434
+OPENAI_MODEL=llama3.1
+```
+
+**2. A free cloud tier.** Google Gemini (`gemini-2.0-flash`) and OpenRouter's `:free` models both
+have free tiers and both speak the OpenAI chat-completions format, so they work with the same
+adapter:
+
+```bash
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_MODEL=meta-llama/llama-3.1-8b-instruct:free
+```
+
+**3. No provider at all.** Leave both keys empty and the portal runs in deterministic fallback
+mode: tickets are still classified (by the rules), the queue, the drafts-by-hand workflow and
+every other feature still work — only the AI draft button is disabled, with an explanation.
 
 ---
 
