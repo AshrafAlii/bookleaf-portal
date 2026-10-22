@@ -84,6 +84,19 @@ public class AdminTicketController {
                 ticketPage.isLast());
     }
 
+    @PostMapping("/bulk")
+    @Operation(summary = "Apply one action to many tickets",
+            description = "Assign, re-status, re-categorise, re-prioritise and/or add an internal note "
+                    + "to a set of tickets in a single call. Every part of the request is optional; only "
+                    + "the parts that are supplied are applied. Each change is written to the audit trail.")
+    @ApiResponse(responseCode = "200", description = "Bulk action applied")
+    @ApiResponse(responseCode = "400", description = "No tickets selected or no action chosen")
+    public com.bookleaf.portal.dto.AdminDtos.BulkUpdateResponse bulkUpdate(
+            @Valid @RequestBody com.bookleaf.portal.dto.AdminDtos.BulkUpdateRequest request,
+            @AuthenticationPrincipal AppUserPrincipal principal) {
+        return ticketService.bulkUpdate(request, principal);
+    }
+
     @GetMapping("/{ticketId}")
     @Operation(summary = "Full ticket view including internal notes and the audit trail")
     public TicketDetailResponse ticket(@PathVariable UUID ticketId) {

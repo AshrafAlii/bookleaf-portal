@@ -7,11 +7,14 @@ import type {
   AuthorTicketDetailResponse,
   AuthResponse,
   BookResponse,
+  BulkUpdateRequest,
+  BulkUpdateResponse,
   DraftResult,
   KnowledgeBaseInfo,
   MetaResponse,
   PageResponse,
   QueueStats,
+  SavedFilter,
   TicketDetailResponse,
   TicketSummary,
 } from './types'
@@ -76,6 +79,17 @@ export const adminApi = {
   reply: (id: string, body: string) => api.post<TicketDetailResponse>(`/admin/tickets/${id}/replies`, { body }),
   note: (id: string, body: string) => api.post<TicketDetailResponse>(`/admin/tickets/${id}/notes`, { body }),
   draft: (id: string) => api.post<DraftResult>(`/admin/tickets/${id}/draft`),
+  bulkUpdate: (payload: BulkUpdateRequest) =>
+    api.post<BulkUpdateResponse>('/admin/tickets/bulk', payload),
+}
+
+// ---------------------------------------------------------------- saved filters
+
+export const filterApi = {
+  list: () => api.get<SavedFilter[]>('/admin/filters'),
+  create: (name: string, filters: QueueFilters) =>
+    api.post<SavedFilter>('/admin/filters', { name, filters: JSON.stringify(filters) }),
+  remove: (id: string) => api.delete<void>(`/admin/filters/${id}`),
 }
 
 // ---------------------------------------------------------------- meta

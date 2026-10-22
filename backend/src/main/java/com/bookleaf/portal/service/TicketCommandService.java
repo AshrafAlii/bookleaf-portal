@@ -17,6 +17,8 @@ import com.bookleaf.portal.repository.TicketEventRepository;
 import com.bookleaf.portal.repository.TicketMessageRepository;
 import com.bookleaf.portal.repository.TicketRepository;
 import com.bookleaf.portal.repository.UserRepository;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -186,5 +188,97 @@ public class TicketCommandService {
     @Transactional
     public void recordEvent(Ticket ticket, User actor, String eventType, String detail) {
         eventRepository.save(new TicketEvent(ticket, actor, eventType, detail));
+    }
+
+    /**
+     * Applies one action to many tickets in a single transaction.
+     *
+     * <p>Each ticket is only touched for the parts of the request that apply, and
+     * an audit event is written for every change — a bulk action is still
+     * traceable ticket by ticket. Tickets already in the target state are left
+     * alone and excluded from the change counts.</p>
+     */
+    @Transactional
+    public BulkResult bulkUpdate(List<UUID> ticketIds,
+                                  TicketStatus status,
+                                  TicketCategory category,
+                                  TicketPriority priority,
+                                  boolean assignToMe,
+                                  String note,
+                                  User actor) {
+        List<Ticket> tickets = ticketRepository.findAllById(ticketIds);
+
+        int statusChanged = 0;
+        int categoryChanged = 0;
+        int priorityChanged = 0;
+        int assigned = 0;
+        int noted = 0;
+        List<UUID> changed = new ArrayList<>();
+
+        for (Ticket ticket : tickets) {
+            boolean touched = false;
+
+            if (status != null && ticket.getStatus() != status) {
+                TicketStatus previous = ticket.getStatus();
+                ticket.changeStatus(status);
+                eventRepository.save(new TicketEvent(ticket, actor, TicketEvent.STATUS_CHANGED,
+                        previous.label() + " → " + status.label() + " (bulk action)"));
+                statusChanged++;
+                touched = true;
+            }
+
+            if (category != null && ticket.getCategory() != category) {
+                TicketCategory previous = ticket.getCategory();
+                ticket.overrideCategory(category);
+                eventRepository.save(new TicketEvent(ticket, actor, TicketEvent.CATEGORY_OVERRIDDEN,
+                        previous.label() + " → " + category.label() + " (bulk action)"));
+                categoryChanged++;
+                touched = true;
+            }
+
+            if (priority != null && ticket.getPriority() != priority) {
+                TicketPriority previous = ticket.getPriority();
+                ticket.overridePriority(priority);
+                eventRepository.save(new TicketEvent(ticket, actor, TicketEvent.PRIORITY_OVERRIDDEN,
+                        previous.label() + " → " + priority.label() + " (bulk action)"));
+                priorityChanged++;
+                touched = true;
+            }
+
+            if (assignToMe) {
+                String previous = ticket.getAssignedTo() == null ? "Unassigned" : ticket.getAssignedTo().getFullName();
+                ticket.assignTo(actor);
+                eventRepository.save(new TicketEvent(ticket, actor, TicketEvent.ASSIGNED,
+                        previous + " → " + actor.getFullName() + " (bulk action)"));
+                assigned++;
+                touched = true;
+            }
+
+            if (note != null && !note.isBlank()) {
+                messageRepository.save(new TicketMessage(ticket, actor, note.strip(), true));
+                eventRepository.save(new TicketEvent(ticket, actor, TicketEvent.NOTE_ADDED,
+                        "Internal note added (bulk action)"));
+                noted++;
+                touched = true;
+            }
+
+            if (touched) {
+                ticketRepository.save(ticket);
+                changed.add(ticket.getId());
+            }
+        }
+
+        return new BulkResult(statusChanged, categoryChanged, priorityChanged, assigned, noted, changed);
+    }
+
+    /**
+     * The outcome of a bulk update.
+     */
+    public record BulkResult(int statusChanged,
+                              int categoryChanged,
+                              int priorityChanged,
+                              int assigned,
+                              int noted,
+                              List<UUID> changedIds) {
     }
 }

@@ -54,16 +54,19 @@ public abstract class IntegrationTestBase {
     protected String authorToken;
     protected String otherAuthorToken;
     protected String adminToken;
+    protected String otherAdminToken;
 
     protected static final String AUTHOR_EMAIL = "author.one@email.com";
     protected static final String OTHER_AUTHOR_EMAIL = "author.two@email.com";
     protected static final String ADMIN_EMAIL = "ops@bookleaf.in";
+    protected static final String OTHER_ADMIN_EMAIL = "lead@bookleaf.in";
     protected static final String PASSWORD = "Test@1234";
 
     @BeforeEach
     void seedFixtures() throws Exception {
         TestDatabase.reset();
         fixtures.createAdmin(ADMIN_EMAIL, "BookLeaf Ops", PASSWORD);
+        fixtures.createAdmin(OTHER_ADMIN_EMAIL, "Priya Menon", PASSWORD);
         var author = fixtures.createAuthor("AUTH001", "Author One", AUTHOR_EMAIL, PASSWORD);
         fixtures.createBook(author, "BK001", "Whispers of the Ganges", "Published & Live",
                 new java.math.BigDecimal("399"));
@@ -74,6 +77,7 @@ public abstract class IntegrationTestBase {
         authorToken = login(AUTHOR_EMAIL);
         otherAuthorToken = login(OTHER_AUTHOR_EMAIL);
         adminToken = login(ADMIN_EMAIL);
+        otherAdminToken = login(OTHER_ADMIN_EMAIL);
     }
 
     protected String login(String email) throws Exception {

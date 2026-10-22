@@ -233,6 +233,34 @@ export interface KnowledgeBaseInfo {
   version: string
 }
 
+export interface BulkUpdateRequest {
+  ticketIds: string[]
+  status?: string
+  category?: string
+  priority?: string
+  assignToMe?: boolean
+  note?: string
+}
+
+export interface BulkUpdateResponse {
+  requested: number
+  updated: number
+  statusChanged: number
+  categoryChanged: number
+  priorityChanged: number
+  assigned: number
+  noted: number
+  ticketIds: string[]
+}
+
+export interface SavedFilter {
+  id: string
+  name: string
+  /** The stored queue filters, serialised as JSON. */
+  filters: string
+  createdAt: string
+}
+
 export interface TicketStreamEvent {
   type: string
   ticketId: string | null

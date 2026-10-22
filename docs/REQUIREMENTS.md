@@ -39,12 +39,14 @@ listed at the bottom.
 | B12 | Update ticket status | ✅ | `PUT .../status` — Open → In Progress → Resolved → Closed, with `firstResponseAt` / `resolvedAt` / `closedAt` |
 | B13 | Internal notes, **not** visible to the author | ✅ | `POST .../notes`. The author-facing query never selects internal notes. Covered by a test. |
 | B14 | Assign tickets to themselves | ✅ | `POST .../assign` |
+| B15 | *(added)* Bulk actions so an ops team can work a backlog in batches | ✅ | `POST .../bulk` — assign, re-status, re-categorise, re-prioritise and/or note many tickets at once. Each change is audited individually. |
+| B16 | *(added)* Saved views for the filters the team works with daily | ✅ | `GET/POST/DELETE /admin/filters`, private per admin |
 
 ## C. API Layer
 
 | # | Requirement | Status | Where |
 |---|---|---|---|
-| C1 | Clean REST API, properly structured endpoints, consistent naming | ✅ | 27 endpoints under `/api/v1`, plural resource nouns, verb-prefixed actions. Full listing in `docs/API.md` |
+| C1 | Clean REST API, properly structured endpoints, consistent naming | ✅ | 30 endpoints under `/api/v1`, plural resource nouns, verb-prefixed actions. Full listing in `docs/API.md` |
 | C2 | Authentication middleware protecting all routes | ✅ | `JwtAuthenticationFilter` + `SecurityConfig`; all `/api/**` routes require a bearer token except login/refresh/meta |
 | C3 | RBAC — authors only their own data, admins everything | ✅ | `/api/v1/admin/**` requires `ROLE_ADMIN`; author scoping in the query layer; admin gets 403, cross-author ticket access gets 404 |
 | C4 | Input validation and meaningful error responses (not generic 500s) | ✅ | Bean Validation with per-field messages; centralised error envelope; unknown filter values get a 400 naming the value; unexpected errors return a correlation id, never a stack trace |
@@ -107,7 +109,7 @@ listed at the bottom.
 | **Architecture & Code Quality** | 25% | Layered (`web → service → repository`), command/query/service split so no transaction spans an LLM call; JPA Specifications for the dynamic queue; Flyway-owned schema with `ddl-auto=validate`; centralised error handling; no spaghetti — the AI layer is behind one interface |
 | **API Design** | 15% | 27 REST endpoints, consistent naming, bearer auth, RBAC, per-field validation, meaningful errors, Swagger + written reference |
 | **Functionality & Completeness** | 15% | Both portals complete; ticket lifecycle end to end; live SSE updates; edge cases handled — books in production (null MRP, no fake zeros), zero royalties, empty states, 404 for another author's ticket, internal notes hidden |
-| **Product Thinking** | 10% | Ops dashboard (awaiting first reply, 48-hour breach, average first response); author dashboard with real royalty totals; live/offline indicator; "Override" and "Fallback" badges so a human can audit the model; demo credentials on the login screen |
+| **Product Thinking** | 10% | Ops dashboard (awaiting first reply, 48-hour breach, average first response); bulk triage and saved views so the queue works at backlog scale; author dashboard with real royalty totals; live/offline indicator; "Override" and "Fallback" badges so a human can audit the model; demo credentials on the login screen |
 | **Documentation & Communication** | 10% | README with architecture rationale, measured AI numbers and limitations; API reference; IntelliJ guide; one-page write-up; screenshots; 10 descriptive commits |
 
 ---

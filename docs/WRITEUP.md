@@ -73,6 +73,12 @@ filtered server side — the author-facing query never selects them at all.
 refreshing. Server-Sent Events, with the authorisation decision made at publication time so an
 author's stream only carries their own tickets.
 
+**5. The queue works at backlog scale.** The brief says the most urgent and oldest unresolved
+tickets should be easy to spot, but an ops team handling a hundred tickets a day needs more than
+that: bulk actions to triage, assign and close a batch in one go, and saved views for the filters
+they use every day. Both were added after the first end-to-end pass, because working the queue by
+hand for ten minutes showed exactly which actions were being repeated.
+
 ## Trade-offs I made
 
 **Java + Spring over a lighter stack.** It is not the fastest thing to write, but it is the stack
@@ -89,8 +95,8 @@ and money, and for a 1,450-token knowledge base with clearly named sections it w
 little. The lexical scorer is deterministic, free, testable and easy to explain. It is isolated
 behind `KnowledgeBaseService` so swapping it later touches one class.
 
-**Deliberately not built:** file upload (the brief says UI only), bulk queue actions, multi-book
-tickets, a CMS for the knowledge base, and rate limiting on login. Each is a defensible omission
+**Deliberately not built:** file upload (the brief says UI only), multi-book tickets, a CMS for
+the knowledge base, and rate limiting on login. Each is a defensible omission
 for the time available; each is listed in the README's limitations with the reasoning.
 
 ## Bugs the work surfaced
@@ -123,9 +129,9 @@ sections nobody needs; and there should be a structured "escalate to a human" si
 knows when *not* to answer. A stronger hosted model is the cheapest possible upgrade here — the
 prompt, retrieval and grounding are already in place.
 
-**With more time on the platform**, the queue needs bulk triage and saved filters (an ops team
-works in batches, not one ticket at a time), SLA policies that escalate automatically rather than
-only reporting overdue counts, and attachments stored in object storage. The ticket list on the
+**With more time on the platform**, the queue needs SLA policies that escalate automatically
+rather than only reporting overdue counts, attachments stored in object storage, and per-ticket
+productivity metrics so the team can see who is handling what. The ticket list on the
 author side needs pagination. The SSE hub needs a shared broker (Redis pub/sub) before it can run
 on more than one instance, and the knowledge base wants a CMS so the ops team can edit policy
 without a code review.

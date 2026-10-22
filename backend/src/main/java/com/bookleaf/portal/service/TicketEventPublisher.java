@@ -116,6 +116,24 @@ public class TicketEventPublisher {
     }
 
     /**
+     * Publishes an event that is not tied to a single ticket — used for bulk
+     * actions, where one event per ticket would be noise.
+     */
+    public void publishSummary(String type, String message) {
+        TicketStreamEvent event = new TicketStreamEvent(type, null, null, null, null, null, message,
+                Instant.now().toString());
+        subscriptions.values().removeIf(subscription -> {
+            try {
+                subscription.emitter().send(SseEmitter.event().name("ticket").data(event));
+                return false;
+            } catch (IOException | IllegalStateException ex) {
+                log.debug("Dropping SSE subscriber {}: {}", subscription.id(), ex.getMessage());
+                return true;
+            }
+        });
+    }
+
+    /**
      * Keeps proxies from closing idle connections.
      */
     @Scheduled(fixedDelay = 25_000)

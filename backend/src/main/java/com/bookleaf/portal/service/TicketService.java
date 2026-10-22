@@ -10,6 +10,8 @@ import com.bookleaf.portal.domain.Book;
 import com.bookleaf.portal.domain.Ticket;
 import com.bookleaf.portal.domain.TicketEvent;
 import com.bookleaf.portal.domain.User;
+import com.bookleaf.portal.dto.AdminDtos.BulkUpdateRequest;
+import com.bookleaf.portal.dto.AdminDtos.BulkUpdateResponse;
 import com.bookleaf.portal.dto.TicketDtos.AuthorTicketDetailResponse;
 import com.bookleaf.portal.dto.TicketDtos.CreateTicketRequest;
 import com.bookleaf.portal.dto.TicketDtos.OverrideCategoryRequest;
@@ -200,6 +202,47 @@ public class TicketService {
         commandService.addInternalNote(ticket, admin, request);
         eventPublisher.publish(ticket, "NOTE_ADDED", "Internal note added to " + ticket.getTicketCode());
         return queryService.getAdminTicket(ticketId);
+    }
+
+    /**
+     * Applies one action to many tickets.
+     *
+     * <p>Every part of the request is optional — only the parts that are set are
+     * applied. A single event is published for the whole batch rather than one
+     * per ticket.</p>
+     */
+    public BulkUpdateResponse bulkUpdate(BulkUpdateRequest request, AppUserPrincipal actor) {
+        if (request.ticketIds() == null || request.ticketIds().isEmpty()) {
+            throw ApiException.badRequest("Select at least one ticket");
+        }
+        if (request.status() == null && request.category() == null && request.priority() == null
+                && !Boolean.TRUE.equals(request.assignToMe())
+                && (request.note() == null || request.note().isBlank())) {
+            throw ApiException.badRequest("Choose at least one action to apply");
+        }
+
+        User admin = resolveActor(actor);
+        TicketCommandService.BulkResult result = commandService.bulkUpdate(
+                request.ticketIds(),
+                request.status(),
+                request.category(),
+                request.priority(),
+                Boolean.TRUE.equals(request.assignToMe()),
+                request.note(),
+                admin);
+
+        eventPublisher.publishSummary("BULK_UPDATE",
+                "Bulk action applied to " + result.changedIds().size() + " ticket(s) by " + admin.getFullName());
+
+        return new BulkUpdateResponse(
+                request.ticketIds().size(),
+                result.changedIds().size(),
+                result.statusChanged(),
+                result.categoryChanged(),
+                result.priorityChanged(),
+                result.assigned(),
+                result.noted(),
+                result.changedIds());
     }
 
     /**

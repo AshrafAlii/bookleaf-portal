@@ -46,6 +46,8 @@ grounded in BookLeaf's own policy.
 |---|---|
 | ![Admin ticket detail](docs/screenshots/admin-ticket-detail.png) | ![Knowledge base](docs/screenshots/admin-knowledge-base.png) |
 
+![Bulk actions and saved views](docs/screenshots/admin-bulk-actions.png)
+
 ---
 
 ## Tech stack
@@ -192,7 +194,8 @@ something to show immediately.
 
 - **Queue** — every ticket across all authors, filterable by status, category, priority, assignee
   and free text (subject, description, author, code), sortable by urgency or age, paginated.
-  Critical and high priority tickets sort to the top; overdue work is highlighted.
+  Critical and high priority tickets sort to the top; overdue work is highlighted. Rows are
+  selectable so a batch can be triaged, assigned or closed in one action.
 - **Auto-classification** — every new ticket is categorised into one of the six categories the
   brief defines. The admin can override it; overrides are marked *Override* in the UI and recorded
   in the audit trail.
@@ -202,6 +205,11 @@ something to show immediately.
   account data, generated on demand, editable before sending.
 - **Ticket management** — status transitions, assignment to self, public replies, and internal
   notes that are never visible to the author.
+- **Bulk actions** — select tickets and assign, re-status, re-categorise, re-prioritise or note
+  them in one action. Every change is written to the audit trail individually, exactly as a
+  single-ticket action would be.
+- **Saved views** — store the filters you work with every day ("Overdue royalties", "My critical
+  tickets") and re-apply them with one click. Saved views are private to your account.
 - **Audit trail** — every creation, classification, override, assignment, reply and status change
   is recorded with actor and timestamp.
 - **Operations dashboard** — open / in-progress / resolved counts, tickets awaiting a first reply,
@@ -558,7 +566,7 @@ do not close idle connections.
 ## Testing
 
 ```bash
-cd backend && mvn test       # 41 backend tests
+cd backend && mvn test       # 50 backend tests
 cd frontend && npm test      # 13 frontend tests
 ```
 
@@ -566,13 +574,14 @@ The integration tests switch the AI layer off (`app.ai.provider=none`) so the su
 on an external service — it stays fast and deterministic, and exercises the fallback path. The AI
 prompt and parsing logic are covered separately by `AiTriageServiceTest` with a stubbed gateway.
 
-Backend — 41 tests, all passing:
+Backend — 50 tests, all passing:
 
 | Suite | What it covers |
 |---|---|
 | `AuthApiTest` | Login success and failure, generic error message, field-level validation, protected routes, `/auth/me` |
 | `AuthorTicketApiTest` | Auto-triage on creation, authors only seeing their own tickets, cross-author access returning 404, admin routes returning 403, a ticket cannot reference another author's book, dashboard aggregation, book scoping |
 | `AdminTicketApiTest` | Queue listing and filtering, unknown filter values returning 400, category/priority overrides, replies reaching the author, **internal notes never reaching the author**, status audit trail, assignment, graceful draft degradation, dashboard stats |
+| `AdminBulkActionsApiTest` | Bulk actions applying to every selected ticket, per-ticket audit events, unchanged tickets left alone, bulk notes staying internal, empty/no-action requests rejected, authors being blocked, and the saved-filter lifecycle including duplicate names and per-admin privacy |
 | `AiTriageServiceTest` | The AI path with a stubbed gateway: valid output parsed, markdown-fenced JSON parsed, unknown category falling back, unparseable output falling back, provider outage falling back, no provider falling back |
 | `HeuristicTriageServiceTest` | The fallback classifier against each of the six categories and the priority rubric |
 | `KnowledgeBaseServiceTest` | Knowledge-base parsing, retrieval relevance, and that retrieved context is smaller than the whole KB |
@@ -657,8 +666,6 @@ The image is a multi-stage build (Node → Maven → JRE), runs as a non-root us
   multi-instance deployment would need a shared broker (Redis pub/sub) so events fan out across
   nodes.
 - **No rate limiting or CAPTCHA** on the login endpoint.
-- **The admin queue does not support bulk actions** (triage or close many tickets at once) — the
-  obvious next feature for an ops team.
 - **No per-platform sales breakdown.** The knowledge base mentions authors can see sales per
   platform; the sample dataset only provides a platform list, so the UI shows the platform list
   rather than invented figures.

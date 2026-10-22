@@ -214,6 +214,58 @@ When the provider is unavailable:
 }
 ```
 
+### `POST /admin/tickets/bulk`
+
+Applies one action to many tickets. Every part of the request is optional — only the parts that
+are supplied are applied, so the same endpoint covers "assign these 30 to me" and "close these 12
+as resolved".
+
+```json
+{
+  "ticketIds": ["8f58f29d-…", "3aad79c8-…"],
+  "status": "IN_PROGRESS",
+  "category": "ROYALTY_PAYMENTS",
+  "priority": "HIGH",
+  "assignToMe": true,
+  "note": "Triaged in the morning batch."
+}
+```
+
+```json
+{
+  "requested": 2, "updated": 2,
+  "statusChanged": 2, "categoryChanged": 0, "priorityChanged": 1,
+  "assigned": 2, "noted": 2,
+  "ticketIds": ["8f58f29d-…", "3aad79c8-…"]
+}
+```
+
+Tickets already in the target state are left alone and excluded from the change counts. Every
+change writes its own audit event, so a bulk action is traceable ticket by ticket. A `note` is an
+**internal note** and is never visible to the author.
+
+`400` when no tickets are selected or no action is chosen; `403` for a non-admin.
+
+### `GET /admin/filters` · `POST /admin/filters` · `DELETE /admin/filters/{id}`
+
+Saved queue filters, private to the admin who created them.
+
+```json
+// POST /admin/filters
+{ "name": "Overdue royalties", "filters": "{"status":"OPEN","category":"ROYALTY_PAYMENTS","sort":"createdAt,asc"}" }
+```
+
+```json
+// GET /admin/filters
+[
+  { "id": "6c7ead2c-…", "name": "Overdue royalties",
+    "filters": "{"status":"OPEN","category":"ROYALTY_PAYMENTS","sort":"createdAt,asc"}",
+    "createdAt": "2026-10-22T12:30:47Z" }
+]
+```
+
+`409` when a filter with the same name already exists.
+
 ### `GET /admin/dashboard`
 
 ```json
