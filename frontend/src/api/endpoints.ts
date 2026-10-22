@@ -90,6 +90,24 @@ export const adminApi = {
 
 // ---------------------------------------------------------------- saved filters
 
+export interface AiStatus {
+  enabled: boolean
+  provider: string | null
+  model: string | null
+  /** The URL the client actually calls — never includes the key. */
+  endpoint: string | null
+  triageMaxOutputTokens: number
+  draftMaxOutputTokens: number
+  maxConcurrentCalls: number
+  triageAsync: boolean
+  message: string | null
+  latencyMs: number | null
+}
+
+export const aiStatusApi = {
+  status: () => api.get<AiStatus>('/admin/ai-status'),
+}
+
 export const filterApi = {
   list: () => api.get<SavedFilter[]>('/admin/filters'),
   create: (name: string, filters: QueueFilters) =>

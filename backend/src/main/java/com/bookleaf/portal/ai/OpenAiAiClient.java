@@ -66,7 +66,7 @@ public class OpenAiAiClient implements AiClient {
 
         try {
             JsonNode response = restClient.post()
-                    .uri(config.getBaseUrl() + "/v1/chat/completions")
+                    .uri(config.getBaseUrl() + config.getChatPath())
                     .header("Authorization", "Bearer " + config.getApiKey())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(objectMapper.writeValueAsString(payload))

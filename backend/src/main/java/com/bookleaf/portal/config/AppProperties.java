@@ -340,6 +340,16 @@ public class AppProperties {
         public static class OpenAi {
             private String apiKey = "";
             private String baseUrl = "https://api.openai.com";
+            /**
+             * Path appended to the base URL for the chat completions call.
+             *
+             * <p>Configurable because the OpenAI-compatible providers do not all
+             * agree on where the API lives: OpenAI uses {@code /v1/chat/completions},
+             * OpenRouter uses {@code /chat/completions} on top of an {@code /api/v1}
+             * base, and Gemini uses {@code /chat/completions} on top of a
+             * {@code /v1beta/openai} base.</p>
+             */
+            private String chatPath = "/v1/chat/completions";
             private String model = "gpt-4o-mini";
 
             public String getApiKey() {
@@ -356,6 +366,14 @@ public class AppProperties {
 
             public void setBaseUrl(String baseUrl) {
                 this.baseUrl = baseUrl;
+            }
+
+            public String getChatPath() {
+                return chatPath;
+            }
+
+            public void setChatPath(String chatPath) {
+                this.chatPath = chatPath;
             }
 
             public String getModel() {

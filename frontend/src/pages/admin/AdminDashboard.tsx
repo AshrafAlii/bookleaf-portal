@@ -1,18 +1,21 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { adminApi } from '../../api/endpoints'
+import { adminApi, aiStatusApi } from '../../api/endpoints'
 import { Card, CardHeader } from '../../components/Card'
 import { StatCard } from '../../components/StatCard'
 import { PriorityBadge, StatusBadge } from '../../components/Badges'
 import { EmptyState, ErrorBanner, InfoBanner } from '../../components/Feedback'
 import { FullPageSpinner } from '../../components/Spinner'
 import { formatAge, formatNumber } from '../../lib/format'
+import { cn } from '../../lib/cn'
 
 export function AdminDashboard() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin', 'dashboard'],
     queryFn: adminApi.dashboard,
   })
+  const [aiStatus, setAiStatus] = useState<{ ok: boolean; message: string } | null>(null)
 
   if (isLoading) return <FullPageSpinner label="Loading the support desk…" />
   if (error) {
@@ -153,6 +156,37 @@ export function AdminDashboard() {
               </dd>
             </div>
           </dl>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const status = await aiStatusApi.status()
+                setAiStatus({
+                  ok: status.enabled && status.message?.startsWith('Reachable') === true,
+                  message: status.message ?? 'No response',
+                })
+              } catch (err) {
+                setAiStatus({
+                  ok: false,
+                  message: err instanceof Error ? err.message : 'The check failed',
+                })
+              }
+            }}
+            className="mt-3 w-full rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-700 hover:bg-ink-50"
+          >
+            Test the AI connection
+          </button>
+          {aiStatus ? (
+            <p
+              className={cn(
+                'mt-2 text-xs',
+                aiStatus.ok ? 'text-leaf-700' : 'text-amber-700',
+              )}
+            >
+              {aiStatus.message}
+            </p>
+          ) : null}
+
           {ai.provider === 'none' ? (
             <div className="mt-4">
               <InfoBanner tone="warning">
