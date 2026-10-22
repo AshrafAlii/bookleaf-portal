@@ -142,8 +142,8 @@ public class HeuristicTriageService {
         }
 
         // Low: purely informational asks.
-        if (containsAny(text, "can i update my bio", "update my bio", "just wanted", "curiosity",
-                "is it possible to know", "any update on", "thank you for")) {
+        if (containsAny(text, "can i update", "update my bio", "update the description",
+                "just wanted", "curiosity", "is it possible to know", "any update on", "thank you for")) {
             return TicketPriority.LOW;
         }
 

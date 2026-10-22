@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------------------
+# Local development stack: PostgreSQL + the full application.
+#
+#   docker compose up -d db        # just the database (used by `mvn test`)
+#   docker compose up -d --build   # database + application on http://localhost:8080
+# ---------------------------------------------------------------------------
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bookleaf-db
+    environment:
+      POSTGRES_USER: bookleaf
+      POSTGRES_PASSWORD: bookleaf
+      POSTGRES_DB: bookleaf
+    ports:
+      - "5432:5432"
+    volumes:
+      - bookleaf-db-data:/var/lib/postgresql/data
+      # Creates the separate database the integration tests use.
+      - ./infra/init-databases.sql:/docker-entrypoint-initdb.d/10-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookleaf -d bookleaf"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bookleaf-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/bookleaf
+      DB_USERNAME: bookleaf
+      DB_PASSWORD: bookleaf
+      JWT_SECRET: local-docker-secret-change-me-before-deploying-anywhere
+      SECURE_COOKIES: "false"
+      SEED_ENABLED: "true"
+      # Leave both empty to run in deterministic fallback mode.
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  bookleaf-db-data:

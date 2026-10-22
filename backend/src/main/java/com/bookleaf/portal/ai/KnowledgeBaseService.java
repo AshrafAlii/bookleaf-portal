@@ -132,7 +132,10 @@ public class KnowledgeBaseService {
 
         List<Scored> scored = new ArrayList<>();
         for (KnowledgeSection section : sections) {
-            if (TONE_SECTION.equals(section.title())) {
+            // The tone guide is added separately, and the calibration examples are
+            // passed to the model as their own block — neither belongs in the
+            // retrieved policy context.
+            if (TONE_SECTION.equals(section.title()) || section.title().toLowerCase(Locale.ROOT).startsWith("example - ")) {
                 continue;
             }
             int score = score(section, queryTerms);

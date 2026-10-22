@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import com.bookleaf.portal.dto.TicketDtos.TicketSummary;
 
 /**
  * The admin-facing ticket API. Access is restricted to {@code ROLE_ADMIN} by the
@@ -51,7 +52,7 @@ public class AdminTicketController {
     @GetMapping
     @Operation(summary = "Search the support queue",
             description = "Filter by status, category, priority, assignee and date; sort by urgency or age.")
-    public Page<com.bookleaf.portal.dto.TicketDtos.TicketSummary> queue(
+    public com.bookleaf.portal.dto.TicketDtos.PageResponse<com.bookleaf.portal.dto.TicketDtos.TicketSummary> queue(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String priority,
@@ -64,13 +65,23 @@ public class AdminTicketController {
             @RequestParam(defaultValue = "priorityRank,desc") String sort) {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         PageRequest pageable = PageRequest.of(Math.max(page, 0), safeSize, parseSort(sort));
-        return ticketService.adminQueue(
+        Page<TicketSummary> ticketPage = ticketService.adminQueue(
                 new TicketQueryService.TicketStatusFilter(
                         parseEnum(status, com.bookleaf.portal.domain.TicketStatus.class),
                         parseEnum(category, com.bookleaf.portal.domain.TicketCategory.class),
                         parseEnum(priority, com.bookleaf.portal.domain.TicketPriority.class),
                         assignedTo, from, to, search),
                 pageable);
+        // Serialised as an explicit DTO rather than Spring's PageImpl so the JSON
+        // shape is part of the API contract and cannot drift.
+        return new com.bookleaf.portal.dto.TicketDtos.PageResponse<>(
+                ticketPage.getContent(),
+                ticketPage.getNumber(),
+                ticketPage.getSize(),
+                ticketPage.getTotalElements(),
+                ticketPage.getTotalPages(),
+                ticketPage.isFirst(),
+                ticketPage.isLast());
     }
 
     @GetMapping("/{ticketId}")

@@ -1,0 +1,54 @@
+# ---------------------------------------------------------------------------
+# Render blueprint — one click deploy of the whole portal.
+#
+#   1. Push this repository to GitHub
+#   2. In Render: New > Blueprint, pick the repository, apply
+#   3. Add ANTHROPIC_API_KEY (or OPENAI_API_KEY) as a secret on the web service
+#
+# The web service serves both the API and the built React app from one origin.
+# ---------------------------------------------------------------------------
+services:
+  - type: web
+    name: bookleaf-portal
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_URL
+        fromDatabase:
+          name: bookleaf-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: bookleaf-db
+          property: username
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: bookleaf-db
+          property: password
+      # Generate with: openssl rand -base64 48
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SECURE_COOKIES
+        value: "true"
+      - key: SEED_ENABLED
+        value: "true"
+      - key: SEED_AUTHOR_PASSWORD
+        value: Author@1234
+      - key: SEED_ADMIN_PASSWORD
+        value: Admin@1234
+      - key: AI_PROVIDER
+        value: auto
+      # Add your own key here (or set it in the Render dashboard as a secret).
+      # - key: ANTHROPIC_API_KEY
+      #   sync: false
+      # - key: OPENAI_API_KEY
+      #   sync: false
+
+databases:
+  - name: bookleaf-db
+    databaseName: bookleaf
+    user: bookleaf
+    plan: free

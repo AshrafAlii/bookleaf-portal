@@ -40,3 +40,6 @@ logs/
 # --- Test output ---
 coverage/
 /uploads/
+
+# Built SPA assets (produced by the frontend build, not committed)
+backend/src/main/resources/static/

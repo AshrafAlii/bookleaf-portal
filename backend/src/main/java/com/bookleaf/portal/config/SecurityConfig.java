@@ -51,7 +51,12 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/meta/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/**").authenticated()
+                        // The SPA shell and its static assets are public; the data behind
+                        // them is not. The client redirects to /login when it has no token.
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico",
+                                "/login", "/author/**", "/admin/**").permitAll()
+                        .anyRequest().permitAll())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(401);
