@@ -23,7 +23,8 @@ services:
       - key: DB_USERNAME
         fromDatabase:
           name: bookleaf-db
-          property: username
+          # Render exposes the database role as `user`, not `username`.
+          property: user
       - key: DB_PASSWORD
         fromDatabase:
           name: bookleaf-db
