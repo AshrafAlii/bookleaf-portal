@@ -12,6 +12,10 @@ grounded in BookLeaf's own policy.
 
 ---
 
+> **Looking for the requirements checklist?** Every line of the assignment brief is mapped to the
+> code that implements it in **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)** — what is done, where
+> it lives, and the two items still outstanding (publishing the repo and deploying).
+
 ## Table of contents
 
 - [Screenshots](#screenshots)
@@ -675,6 +679,7 @@ bookleaf/
 ├── docs/
 │   ├── API.md                    Endpoint reference
 │   ├── INTELLIJ.md               Step-by-step IntelliJ IDEA guide
+│   ├── REQUIREMENTS.md           Assignment brief mapped to the code
 │   ├── WRITEUP.md                One-page approach note
 │   └── screenshots/
 ├── backend/
