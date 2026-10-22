@@ -38,9 +38,9 @@ grounded in BookLeaf's own policy.
 |---|---|
 | ![Author dashboard](docs/screenshots/author-dashboard.png) | ![Admin ticket queue](docs/screenshots/admin-ticket-queue.png) |
 
-| Admin ticket detail (AI draft, triage, audit trail) | Login |
+| Admin ticket detail (AI draft, triage, audit trail) | Knowledge base the model is allowed to quote |
 |---|---|
-| ![Admin ticket detail](docs/screenshots/admin-ticket-detail.png) | ![Login](docs/screenshots/login.png) |
+| ![Admin ticket detail](docs/screenshots/admin-ticket-detail.png) | ![Knowledge base](docs/screenshots/admin-knowledge-base.png) |
 
 ---
 

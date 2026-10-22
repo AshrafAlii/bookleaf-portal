@@ -42,9 +42,9 @@ export function AdminKnowledge() {
 
       <InfoBanner>
         When a draft is generated, only the 2–3 most relevant policy sections are sent to the model (plus the
-        tone guide and one calibration example) instead of the whole knowledge base. That keeps the prompt
-        under ~900 tokens instead of ~1,500, and editing any section below automatically invalidates cached
-        drafts.
+        tone guide and one calibration example) instead of the whole knowledge base — around 540 tokens of
+        context instead of {data.totalTokens}. Editing any section below automatically invalidates cached
+        drafts, because the retrieved context is part of the prompt.
       </InfoBanner>
 
       <Card>
