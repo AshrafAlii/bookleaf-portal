@@ -634,7 +634,7 @@ do not close idle connections.
 ## Testing
 
 ```bash
-cd backend && mvn test       # 58 backend tests
+cd backend && mvn test       # 63 backend tests
 cd frontend && npm test      # 13 frontend tests
 ```
 
@@ -642,7 +642,7 @@ The integration tests switch the AI layer off (`app.ai.provider=none`) so the su
 on an external service — it stays fast and deterministic, and exercises the fallback path. The AI
 prompt and parsing logic are covered separately by `AiTriageServiceTest` with a stubbed gateway.
 
-Backend — 58 tests, all passing:
+Backend — 63 tests, all passing:
 
 | Suite | What it covers |
 |---|---|
@@ -650,6 +650,7 @@ Backend — 58 tests, all passing:
 | `AuthorTicketApiTest` | Auto-triage on creation, authors only seeing their own tickets, cross-author access returning 404, admin routes returning 403, a ticket cannot reference another author's book, dashboard aggregation, book scoping |
 | `AdminTicketApiTest` | Queue listing and filtering, unknown filter values returning 400, category/priority overrides, replies reaching the author, **internal notes never reaching the author**, status audit trail, assignment, graceful draft degradation, dashboard stats |
 | `AdminBulkActionsApiTest` | Bulk actions applying to every selected ticket, per-ticket audit events, unchanged tickets left alone, bulk notes staying internal, empty/no-action requests rejected, authors being blocked, and the saved-filter lifecycle including duplicate names and per-admin privacy |
+| `ProviderEndpointTest` | The URL built for each provider — OpenAI, OpenRouter, Gemini and a local Ollama server — since a wrong endpoint only fails at runtime against the real API |
 | `AiGatewayCacheTest` | The caching semantics: the first call reaches the provider and is cached, a repeat is served from the cache without calling it, and a cache bypass asks again without overwriting the cached original |
 | `AsyncTriageServiceTest` | The background refinement running off the caller's thread, the ticket being updated and an event published when the AI disagrees, and the deterministic classification standing when the provider is unavailable |
 | `AiTriageServiceTest` | The AI path with a stubbed gateway: valid output parsed, markdown-fenced JSON parsed, unknown category falling back, unparseable output falling back, provider outage falling back, no provider falling back |
@@ -672,6 +673,15 @@ applicable, never a fake zero" rule) and the query-string builder.
 ## Deployment
 
 ### Render (one click)
+
+> **Will the AI work on a live host?** Ollama runs on `localhost:11434` on *your* machine, so a
+> deployed container cannot reach it. Use a **cloud API key** instead — Gemini and OpenRouter both
+> have free tiers, the model runs at the provider so it costs zero local memory, and it is faster
+> than the local model. **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** has the exact variables for
+> each provider, plus the fallback mode if you would rather not use a key at all.
+>
+> Verify the wiring from the deployed site: sign in as an admin → **Dashboard** → **Test the AI
+> connection** in the *AI usage* panel.
 
 The repository contains a `render.yaml` blueprint.
 
@@ -755,6 +765,7 @@ bookleaf/
 ├── data/bookleaf_sample_data.json    The supplied dataset, verbatim
 ├── docs/
 │   ├── API.md                    Endpoint reference
+│   ├── DEPLOYMENT.md             Deployment guide and the AI-connection options
 │   ├── INTELLIJ.md               Step-by-step IntelliJ IDEA guide
 │   ├── REQUIREMENTS.md           Assignment brief mapped to the code
 │   ├── WRITEUP.md                One-page approach note

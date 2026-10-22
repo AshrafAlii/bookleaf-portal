@@ -290,6 +290,28 @@ Saved queue filters, private to the admin who created them.
 
 `409` when a filter with the same name already exists.
 
+### `GET /admin/ai-status`
+
+Diagnoses the AI wiring on a deployed instance: the resolved provider, model and endpoint (never
+the key), the effective limits, and the result of a live one-token call to the provider.
+
+```json
+{
+  "enabled": true,
+  "provider": "openai",
+  "model": "gemini-2.0-flash",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+  "triageMaxOutputTokens": 300,
+  "draftMaxOutputTokens": 700,
+  "maxConcurrentCalls": 1,
+  "triageAsync": true,
+  "message": "Reachable in 412 ms.",
+  "latencyMs": 412
+}
+```
+
+Also surfaced in the admin UI as **Test the AI connection**.
+
 ### `GET /admin/dashboard`
 
 ```json
