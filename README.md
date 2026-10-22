@@ -536,17 +536,22 @@ do not close idle connections.
 ## Testing
 
 ```bash
-cd backend && mvn test       # 35 backend tests
+cd backend && mvn test       # 41 backend tests
 cd frontend && npm test      # 13 frontend tests
 ```
 
-Backend — 35 tests, all passing:
+The integration tests switch the AI layer off (`app.ai.provider=none`) so the suite never depends
+on an external service — it stays fast and deterministic, and exercises the fallback path. The AI
+prompt and parsing logic are covered separately by `AiTriageServiceTest` with a stubbed gateway.
+
+Backend — 41 tests, all passing:
 
 | Suite | What it covers |
 |---|---|
 | `AuthApiTest` | Login success and failure, generic error message, field-level validation, protected routes, `/auth/me` |
 | `AuthorTicketApiTest` | Auto-triage on creation, authors only seeing their own tickets, cross-author access returning 404, admin routes returning 403, a ticket cannot reference another author's book, dashboard aggregation, book scoping |
 | `AdminTicketApiTest` | Queue listing and filtering, unknown filter values returning 400, category/priority overrides, replies reaching the author, **internal notes never reaching the author**, status audit trail, assignment, graceful draft degradation, dashboard stats |
+| `AiTriageServiceTest` | The AI path with a stubbed gateway: valid output parsed, markdown-fenced JSON parsed, unknown category falling back, unparseable output falling back, provider outage falling back, no provider falling back |
 | `HeuristicTriageServiceTest` | The fallback classifier against each of the six categories and the priority rubric |
 | `KnowledgeBaseServiceTest` | Knowledge-base parsing, retrieval relevance, and that retrieved context is smaller than the whole KB |
 

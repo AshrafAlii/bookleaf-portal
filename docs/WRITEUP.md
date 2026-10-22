@@ -98,6 +98,9 @@ for the time available; each is listed in the README's limitations with the reas
 Worth noting, because they are the kind of thing that only shows up when you actually run the
 thing:
 
+- The integration tests initially ran against the live local LLM, which made the suite slow
+  (143 s) and flaky. They now switch the AI layer off explicitly, so a test run never depends on
+  an external service.
 - Two `LazyInitializationException`s caused by calling a `@Transactional` method from inside the
   same bean — the Spring proxy is bypassed, so the method ran without a transaction. Fixed by
   splitting the ticket services into a command service (writes), a query service (reads) and a

@@ -35,6 +35,10 @@ public abstract class IntegrationTestBase {
         registry.add("spring.datasource.username", () -> System.getenv().getOrDefault("TEST_DB_USERNAME", "bookleaf"));
         registry.add("spring.datasource.password", () -> System.getenv().getOrDefault("TEST_DB_PASSWORD", "bookleaf"));
         registry.add("app.seed.enabled", () -> "false");
+        // Integration tests must not depend on an external LLM: switch the AI layer
+        // off so the suite is fast and deterministic, and covers the fallback path.
+        // The AI prompt and parsing logic are unit tested separately with a stub.
+        registry.add("app.ai.provider", () -> "none");
         registry.add("app.jwt.secret", () -> "integration-test-secret-key-at-least-32-characters");
     }
 
