@@ -78,7 +78,12 @@ export const adminApi = {
   assignToMe: (id: string) => api.post<TicketDetailResponse>(`/admin/tickets/${id}/assign`),
   reply: (id: string, body: string) => api.post<TicketDetailResponse>(`/admin/tickets/${id}/replies`, { body }),
   note: (id: string, body: string) => api.post<TicketDetailResponse>(`/admin/tickets/${id}/notes`, { body }),
-  draft: (id: string) => api.post<DraftResult>(`/admin/tickets/${id}/draft`),
+  /**
+   * @param refresh ask the model again for a different draft, bypassing the
+   *                response cache (otherwise an identical cached draft is returned)
+   */
+  draft: (id: string, refresh = false) =>
+    api.post<DraftResult>(`/admin/tickets/${id}/draft${refresh ? '?refresh=true' : ''}`),
   bulkUpdate: (payload: BulkUpdateRequest) =>
     api.post<BulkUpdateResponse>('/admin/tickets/bulk', payload),
 }

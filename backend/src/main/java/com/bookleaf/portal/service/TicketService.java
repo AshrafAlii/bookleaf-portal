@@ -291,12 +291,12 @@ public class TicketService {
      * <p>Never throws: if the provider is unavailable the admin simply gets a
      * message explaining that and writes the reply themselves.</p>
      */
-    public DraftResult generateDraft(UUID ticketId) {
+    public DraftResult generateDraft(UUID ticketId, boolean refresh) {
         Ticket ticket = commandService.loadForAdmin(ticketId);
         Author author = ticket.getAuthor();
         List<Book> books = bookRepository.findAllForAuthor(author.getId());
         String authorContext = authorContextBuilder.build(author, books);
-        return draftService.generate(ticket, authorContext);
+        return draftService.generate(ticket, authorContext, refresh);
     }
 
     // ------------------------------------------------------------------ helpers

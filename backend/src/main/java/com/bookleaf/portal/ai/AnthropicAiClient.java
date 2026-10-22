@@ -54,7 +54,7 @@ public class AnthropicAiClient implements AiClient {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("model", model);
         payload.put("max_tokens", request.maxOutputTokens());
-        payload.put("temperature", 0.2);
+        payload.put("temperature", request.temperature());
         payload.put("system", request.systemPrompt());
         payload.put("messages", List.of(Map.of("role", "user", "content", request.userPrompt())));
 

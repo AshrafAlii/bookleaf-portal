@@ -155,9 +155,12 @@ public class AdminTicketController {
     @Operation(summary = "Generate an AI draft reply for this ticket",
             description = "The draft is grounded in the BookLeaf knowledge base and the author's live "
                     + "account data. Returns a degraded response instead of an error when the AI provider "
-                    + "is unavailable, so the admin can write the reply manually.")
-    public DraftResult draft(@PathVariable UUID ticketId) {
-        return ticketService.generateDraft(ticketId);
+                    + "is unavailable, so the admin can write the reply manually. "
+                    + "Pass refresh=true to ask the model again for a different draft, bypassing the "
+                    + "response cache.")
+    public DraftResult draft(@PathVariable UUID ticketId,
+                             @RequestParam(defaultValue = "false") boolean refresh) {
+        return ticketService.generateDraft(ticketId, refresh);
     }
 
     private Sort parseSort(String sort) {

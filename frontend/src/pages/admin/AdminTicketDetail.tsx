@@ -30,6 +30,8 @@ export function AdminTicketDetail() {
   const [noteBody, setNoteBody] = useState('')
   const [draft, setDraft] = useState<string | null>(null)
   const [draftMeta, setDraftMeta] = useState<string | null>(null)
+  const [draftError, setDraftError] = useState<string | null>(null)
+  const [draftRefreshed, setDraftRefreshed] = useState(false)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin', 'ticket', ticketId],
@@ -86,8 +88,12 @@ export function AdminTicketDetail() {
     },
   })
   const generateDraft = useMutation({
-    mutationFn: () => adminApi.draft(ticketId),
-    onSuccess: (result) => {
+    // `refresh` asks the model again and bypasses the response cache, so
+    // "Regenerate" genuinely produces a different draft instead of replaying
+    // the cached one.
+    mutationFn: (refresh: boolean) => adminApi.draft(ticketId, refresh),
+    onSuccess: (result, refresh) => {
+      setDraftError(null)
       if (result.available && result.body) {
         setDraft(result.body)
         setDraftMeta(
@@ -99,6 +105,14 @@ export function AdminTicketDetail() {
         setDraft(null)
         setDraftMeta(result.note ?? 'No draft was generated.')
       }
+      if (refresh) {
+        setDraftRefreshed(true)
+      }
+    },
+    onError: (error) => {
+      setDraftError(
+        error instanceof Error ? error.message : 'The draft could not be generated. Please try again.',
+      )
     },
   })
 
@@ -167,14 +181,24 @@ export function AdminTicketDetail() {
                   size="sm"
                   variant="secondary"
                   loading={generateDraft.isPending}
-                  onClick={() => generateDraft.mutate()}
+                  onClick={() => {
+                    setDraftError(null)
+                    setDraftRefreshed(false)
+                    // The first click uses the cached draft (free and instant);
+                    // clicking again asks the model for a fresh one.
+                    generateDraft.mutate(Boolean(draft))
+                  }}
                 >
                   {draft ? 'Regenerate' : 'Generate draft'}
                 </Button>
               }
             />
             {generateDraft.isPending ? (
-              <InlineLoader label="Asking the model…" />
+              <InlineLoader
+                label={draft ? 'Asking the model for a fresh draft…' : 'Asking the model…'}
+              />
+            ) : draftError ? (
+              <InfoBanner tone="warning">{draftError}</InfoBanner>
             ) : draft ? (
               <>
                 <textarea
@@ -183,6 +207,12 @@ export function AdminTicketDetail() {
                   onChange={(e) => setDraft(e.target.value)}
                 />
                 {draftMeta ? <p className="mt-2 text-xs text-ink-500">{draftMeta}</p> : null}
+                {draftRefreshed ? (
+                  <p className="mt-1 text-xs text-leaf-700">
+                    This is a newly generated draft — compare it with the previous version and keep
+                    whichever reads better.
+                  </p>
+                ) : null}
                 <div className="mt-3 flex items-center justify-end gap-2">
                   <Button variant="ghost" size="sm" onClick={() => setDraft(null)}>
                     Discard

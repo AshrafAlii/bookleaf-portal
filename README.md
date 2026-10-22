@@ -418,7 +418,7 @@ not be switched off for testing.
 | **Retrieval instead of dumping the KB** | The knowledge base is ~1,456 tokens. Retrieval sends the 2–3 relevant policy sections plus the short tone guide — 537 tokens of context instead of 1,456. |
 | **One triage call, not two** | Halves the cost of classifying every inbound ticket. |
 | **Capped output** | Triage is capped at 300 completion tokens, drafts at 700. |
-| **Content-addressed cache** | Results are cached under `sha256(purpose + model + system prompt + user prompt)`. Because the retrieved knowledge base is embedded in the prompt, editing the knowledge base automatically invalidates every cached answer — and so does editing a prompt, which is exactly what you want. A repeated ticket costs nothing: 36 of 71 calls in the measurement run were served from the cache. |
+| **Content-addressed cache** | Results are cached under `sha256(purpose + model + system prompt + user prompt)`. Because the retrieved knowledge base is embedded in the prompt, editing the knowledge base automatically invalidates every cached answer — and so does editing a prompt, which is exactly what you want. A repeated ticket costs nothing: 36 of 71 calls in the measurement run were served from the cache. An explicit **Regenerate** bypasses the cache (and does not overwrite it), because asking again and getting the identical text back would defeat the point. |
 | **Cheap model for triage** | The triage model is configurable separately from the draft model (`AI_TRIAGE_MODEL` / `AI_DRAFT_MODEL`). |
 | **Usage accounting** | Every call is logged with prompt tokens, completion tokens, latency and success. The admin dashboard shows the totals, the cache-hit rate and the average latency — cost is visible, not assumed. |
 
@@ -634,7 +634,7 @@ do not close idle connections.
 ## Testing
 
 ```bash
-cd backend && mvn test       # 54 backend tests
+cd backend && mvn test       # 58 backend tests
 cd frontend && npm test      # 13 frontend tests
 ```
 
@@ -642,7 +642,7 @@ The integration tests switch the AI layer off (`app.ai.provider=none`) so the su
 on an external service — it stays fast and deterministic, and exercises the fallback path. The AI
 prompt and parsing logic are covered separately by `AiTriageServiceTest` with a stubbed gateway.
 
-Backend — 54 tests, all passing:
+Backend — 58 tests, all passing:
 
 | Suite | What it covers |
 |---|---|
@@ -650,6 +650,7 @@ Backend — 54 tests, all passing:
 | `AuthorTicketApiTest` | Auto-triage on creation, authors only seeing their own tickets, cross-author access returning 404, admin routes returning 403, a ticket cannot reference another author's book, dashboard aggregation, book scoping |
 | `AdminTicketApiTest` | Queue listing and filtering, unknown filter values returning 400, category/priority overrides, replies reaching the author, **internal notes never reaching the author**, status audit trail, assignment, graceful draft degradation, dashboard stats |
 | `AdminBulkActionsApiTest` | Bulk actions applying to every selected ticket, per-ticket audit events, unchanged tickets left alone, bulk notes staying internal, empty/no-action requests rejected, authors being blocked, and the saved-filter lifecycle including duplicate names and per-admin privacy |
+| `AiGatewayCacheTest` | The caching semantics: the first call reaches the provider and is cached, a repeat is served from the cache without calling it, and a cache bypass asks again without overwriting the cached original |
 | `AsyncTriageServiceTest` | The background refinement running off the caller's thread, the ticket being updated and an event published when the AI disagrees, and the deterministic classification standing when the provider is unavailable |
 | `AiTriageServiceTest` | The AI path with a stubbed gateway: valid output parsed, markdown-fenced JSON parsed, unknown category falling back, unparseable output falling back, provider outage falling back, no provider falling back |
 | `HeuristicTriageServiceTest` | The fallback classifier against each of the six categories and the priority rubric |

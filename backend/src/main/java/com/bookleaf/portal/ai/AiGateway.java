@@ -99,11 +99,16 @@ public class AiGateway {
         String model = modelName(request.purpose());
         String cacheKey = cacheKey(request.purpose(), model, request.systemPrompt(), request.userPrompt());
 
-        Optional<AiCacheEntry> cached = cacheRepository.findByCacheKey(cacheKey);
-        if (cached.isPresent()) {
-            AiUsageLog usageLog = new AiUsageLog(request.purpose(), provider, model, 0, 0, true, 0, true, null);
-            usageLogRepository.save(usageLog);
-            return AiResult.cachedResult(cached.get().getPayload(), model, provider);
+        // An explicit "regenerate" skips the cache entirely — both the read and
+        // the write — so the model is genuinely asked again and the fresh answer
+        // does not overwrite the cached original.
+        if (!request.bypassCache()) {
+            Optional<AiCacheEntry> cached = cacheRepository.findByCacheKey(cacheKey);
+            if (cached.isPresent()) {
+                AiUsageLog usageLog = new AiUsageLog(request.purpose(), provider, model, 0, 0, true, 0, true, null);
+                usageLogRepository.save(usageLog);
+                return AiResult.cachedResult(cached.get().getPayload(), model, provider);
+            }
         }
 
         AiClient client = "anthropic".equals(provider) ? anthropicClient : openAiClient;
@@ -125,7 +130,9 @@ public class AiGateway {
             int latency = (int) (System.currentTimeMillis() - startedAt);
             usageLogRepository.save(new AiUsageLog(request.purpose(), provider, result.model(),
                     result.promptTokens(), result.completionTokens(), false, latency, true, null));
-            cacheRepository.save(new AiCacheEntry(cacheKey, request.purpose(), result.text()));
+            if (!request.bypassCache()) {
+                cacheRepository.save(new AiCacheEntry(cacheKey, request.purpose(), result.text()));
+            }
             return result;
         } catch (AiUnavailableException ex) {
             int latency = (int) (System.currentTimeMillis() - startedAt);

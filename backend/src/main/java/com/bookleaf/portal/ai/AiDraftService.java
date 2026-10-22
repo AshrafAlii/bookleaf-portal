@@ -38,6 +38,15 @@ public class AiDraftService {
     }
 
     public DraftResult generate(Ticket ticket, String authorContext) {
+        return generate(ticket, authorContext, false);
+    }
+
+    /**
+     * @param refresh when true the cached draft is ignored and the model is asked
+     *                again with a little more sampling freedom, so "Regenerate"
+     *                genuinely produces a different draft
+     */
+    public DraftResult generate(Ticket ticket, String authorContext, boolean refresh) {
         String ticketText = ticket.getSubject() + " " + ticket.getDescription();
         KnowledgeBaseService.Retrieval retrieval =
                 knowledgeBaseService.retrieve(ticketText, properties.getAi().getKnowledgeTopSections());
@@ -79,6 +88,12 @@ public class AiDraftService {
                 properties.getAi().getDraftMaxOutputTokens(),
                 false);
 
+        if (refresh) {
+            // A slightly higher temperature so the second draft is genuinely a
+            // different phrasing rather than a word-for-word repeat.
+            request = request.withBypassCache().withTemperature(0.55);
+        }
+
         if (!gateway.isAiEnabled()) {
             return DraftResult.unavailable("none", "none", retrieval.tokens(),
                     "No AI provider is configured, so no draft was generated. "
@@ -90,6 +105,8 @@ public class AiDraftService {
             return new DraftResult(true, result.text().strip(), result.provider(), result.model(),
                     retrieval.tokens(), result.cached()
                     ? "Served from the response cache — no additional provider cost."
+                    : refresh
+                    ? "Regenerated — the model was asked again for a fresh draft."
                     : null);
         } catch (AiUnavailableException ex) {
             log.warn("Draft generation failed: {}", ex.getMessage());

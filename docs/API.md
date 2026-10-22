@@ -207,6 +207,13 @@ Assigns the ticket to the signed-in admin.
 
 ### `POST /admin/tickets/{id}/draft`
 
+Query parameter: `refresh` (default `false`).
+
+`refresh=false` serves the cached draft when there is one — free and instant.
+`refresh=true` **bypasses the cache**: the model is asked again (at a slightly
+higher temperature so the wording genuinely differs) and the fresh answer does not
+overwrite the cached original. This is what the **Regenerate** button uses.
+
 ```json
 {
   "available": true,
@@ -227,6 +234,9 @@ When the provider is unavailable:
   "note": "No AI provider is configured, so no draft was generated. Write the reply manually — the ticket is fully usable."
 }
 ```
+
+The `note` explains where the draft came from — a cache hit, a fresh generation, or a
+regeneration.
 
 ### `POST /admin/tickets/bulk`
 
