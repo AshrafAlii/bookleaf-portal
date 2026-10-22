@@ -91,6 +91,11 @@ app:
     request-timeout: ${AI_REQUEST_TIMEOUT:PT20S}
     knowledge-base-path: ${AI_KB_PATH:classpath:knowledge/knowledge-base.md}
     knowledge-top-sections: ${AI_KB_TOP_SECTIONS:3}
+    # One concurrent LLM call. A second concurrent request needs its own copy of
+    # the context, which on a self-hosted model means loading it twice.
+    max-concurrent-calls: ${AI_MAX_CONCURRENT_CALLS:1}
+    # Classify in the background so creating a ticket never blocks on the model.
+    triage-async: ${AI_TRIAGE_ASYNC:true}
 
 logging:
   level:

@@ -56,6 +56,20 @@ public class TicketCommandService {
     }
 
     /**
+     * Applies an AI classification to a ticket that was created with the
+     * deterministic fallback classification.
+     */
+    @Transactional
+    public Ticket applyAiDecision(Ticket ticket, TicketCategory category, TicketPriority priority,
+                                  String rationale) {
+        ticket.applyDecision(category, priority, rationale, com.bookleaf.portal.domain.DecisionSource.AI);
+        eventRepository.save(new TicketEvent(ticket, null, TicketEvent.AI_CLASSIFIED,
+                "Refined by the AI to " + category.label() + " / " + priority.label()
+                        + (rationale == null ? "" : " — " + rationale)));
+        return ticketRepository.save(ticket);
+    }
+
+    /**
      * Loads a ticket for a write operation. Runs inside its own transaction so
      * the entity and its associations are fully initialised before the caller
      * works with it.

@@ -10,6 +10,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,16 @@ public class AiGateway {
     private final AiUsageLogRepository usageLogRepository;
     private final AiCacheEntryRepository cacheRepository;
 
+    /**
+     * Caps how many LLM calls run at once.
+     *
+     * <p>Defaults to one. A self-hosted model needs its context in RAM for every
+     * concurrent request, so allowing several at once is what makes a small
+     * machine start swapping. Calls beyond the limit wait for a slot rather than
+     * failing.</p>
+     */
+    private final Semaphore callSlots;
+
     public AiGateway(AppProperties properties,
                      AnthropicAiClient anthropicClient,
                      OpenAiAiClient openAiClient,
@@ -52,6 +63,7 @@ public class AiGateway {
         this.openAiClient = openAiClient;
         this.usageLogRepository = usageLogRepository;
         this.cacheRepository = cacheRepository;
+        this.callSlots = new Semaphore(Math.max(1, properties.getAi().getMaxConcurrentCalls()), true);
     }
 
     /** {@code true} when a real LLM provider is configured and reachable-by-config. */
@@ -95,6 +107,18 @@ public class AiGateway {
         }
 
         AiClient client = "anthropic".equals(provider) ? anthropicClient : openAiClient;
+
+        // Hold a slot for the duration of the call so the provider is never asked
+        // to serve more requests at once than it can hold in memory.
+        boolean acquired = false;
+        try {
+            callSlots.acquire();
+            acquired = true;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new AiUnavailableException("Interrupted while waiting for an AI slot");
+        }
+
         long startedAt = System.currentTimeMillis();
         try {
             AiResult result = client.complete(request);
@@ -109,6 +133,10 @@ public class AiGateway {
                     latency, false, truncate(ex.getMessage())));
             log.warn("AI call failed for purpose {}: {}", request.purpose(), ex.getMessage());
             throw ex;
+        } finally {
+            if (acquired) {
+                callSlots.release();
+            }
         }
     }
 

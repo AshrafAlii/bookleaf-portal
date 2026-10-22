@@ -153,6 +153,24 @@ public class AppProperties {
         private Duration requestTimeout = Duration.ofSeconds(20);
         private String knowledgeBasePath = "classpath:knowledge/knowledge-base.md";
         private int knowledgeTopSections = 3;
+        /**
+         * How many LLM calls may run at the same time.
+         *
+         * <p>One is the right answer for a self-hosted model: a second concurrent
+         * request needs its own copy of the context, which on a small machine
+         * means the model is loaded twice and the box starts swapping.</p>
+         */
+        private int maxConcurrentCalls = 1;
+        /**
+         * Whether ticket classification runs in the background.
+         *
+         * <p>With a fast hosted model the answer barely matters. With a model
+         * running on the same machine as the app it matters a great deal: a
+         * synchronous call blocks the request (and its thread) for as long as the
+         * model takes to answer. The ticket is therefore created immediately with
+         * the deterministic classification and refined by the AI a moment later.</p>
+         */
+        private boolean triageAsync = true;
 
         public String getProvider() {
             return provider;
@@ -220,6 +238,22 @@ public class AppProperties {
 
         public int getKnowledgeTopSections() {
             return knowledgeTopSections;
+        }
+
+        public int getMaxConcurrentCalls() {
+            return maxConcurrentCalls;
+        }
+
+        public void setMaxConcurrentCalls(int maxConcurrentCalls) {
+            this.maxConcurrentCalls = maxConcurrentCalls;
+        }
+
+        public boolean isTriageAsync() {
+            return triageAsync;
+        }
+
+        public void setTriageAsync(boolean triageAsync) {
+            this.triageAsync = triageAsync;
         }
 
         public void setKnowledgeTopSections(int knowledgeTopSections) {

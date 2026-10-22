@@ -1,10 +1,13 @@
 package com.bookleaf.portal.service;
 
 import com.bookleaf.portal.ai.AiDraftService;
+import com.bookleaf.portal.ai.AiGateway;
 import com.bookleaf.portal.ai.AiTriageService;
+import com.bookleaf.portal.ai.AsyncTriageService;
 import com.bookleaf.portal.ai.AuthorContextBuilder;
 import com.bookleaf.portal.ai.DraftResult;
 import com.bookleaf.portal.ai.TriageResult;
+import com.bookleaf.portal.config.AppProperties;
 import com.bookleaf.portal.domain.Author;
 import com.bookleaf.portal.domain.Book;
 import com.bookleaf.portal.domain.Ticket;
@@ -52,6 +55,9 @@ public class TicketService {
     private final AuthorRepository authorRepository;
     private final BookRepository bookRepository;
     private final UserRepository userRepository;
+    private final AiGateway aiGateway;
+    private final AsyncTriageService asyncTriageService;
+    private final AppProperties appProperties;
 
     public TicketService(TicketCommandService commandService,
                          TicketQueryService queryService,
@@ -61,7 +67,10 @@ public class TicketService {
                          AuthorContextBuilder authorContextBuilder,
                          AuthorRepository authorRepository,
                          BookRepository bookRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         AiGateway aiGateway,
+                         AsyncTriageService asyncTriageService,
+                         AppProperties appProperties) {
         this.commandService = commandService;
         this.queryService = queryService;
         this.eventPublisher = eventPublisher;
@@ -71,16 +80,24 @@ public class TicketService {
         this.authorRepository = authorRepository;
         this.bookRepository = bookRepository;
         this.userRepository = userRepository;
+        this.aiGateway = aiGateway;
+        this.asyncTriageService = asyncTriageService;
+        this.appProperties = appProperties;
     }
 
     // ------------------------------------------------------------------ author side
 
     /**
-     * Creates a ticket, classifying and scoring it automatically.
+     * Creates a ticket and classifies it.
      *
-     * <p>The triage call happens before the write so the ticket is never left in an
-     * unclassified state, and a provider failure falls back to deterministic rules
-     * rather than blocking the author.</p>
+     * <p>The ticket is created immediately with the deterministic classification,
+     * so the author is never waiting on the model and the request thread is never
+     * blocked on it. The AI then refines the category and priority in the
+     * background; the admin queue updates live when it lands.</p>
+     *
+     * <p>When the provider is a fast hosted model the same thing happens
+     * synchronously instead, so the caller sees the final classification right
+     * away. Set {@code app.ai.triage-async=false} to force that behaviour.</p>
      */
     public TicketSummary createTicket(AppUserPrincipal principal, CreateTicketRequest request) {
         UUID authorId = principal.getAuthorId();
@@ -94,18 +111,41 @@ public class TicketService {
         String authorContext = authorContextBuilder.build(author, books);
         String bookLabel = resolveBookLabel(request.bookId(), books);
 
-        TriageResult triage = triageService.triage(request.subject(), request.description(), bookLabel,
-                authorContext);
+        boolean aiEnabled = aiGateway.isAiEnabled();
+        boolean async = aiEnabled && appProperties.getAi().isTriageAsync();
 
-        Ticket ticket = commandService.persistNewTicket(authorId, request, triage.category(), triage.priority(),
-                triage.rationale(), triage.source());
+        // The deterministic classification is always computed first: it is
+        // instant, it is free, and it is the answer the ticket carries if the
+        // model never answers.
+        TriageResult initial = async
+                ? triageService.classifyWithoutAi(request.subject(), request.description())
+                : triageService.triage(request.subject(), request.description(), bookLabel, authorContext);
 
-        if (triage.note() != null) {
-            commandService.recordEvent(ticket, author.getUser(), TicketEvent.AI_CLASSIFIED, triage.note());
+        Ticket ticket = commandService.persistNewTicket(authorId, request, initial.category(), initial.priority(),
+                initial.rationale(), initial.source());
+
+        if (initial.note() != null) {
+            commandService.recordEvent(ticket, author.getUser(), TicketEvent.AI_CLASSIFIED, initial.note());
         }
 
-        eventPublisher.publish(ticket, "TICKET_CREATED",
-                "New " + triage.priority().label().toLowerCase() + "-priority ticket from " + author.getName());
+        if (async) {
+            asyncTriageService.refine(ticket.getId(), request.subject(), request.description(), bookLabel,
+                    authorContext);
+            eventPublisher.publish(ticket, "TICKET_CREATED",
+                    "New " + initial.priority().label().toLowerCase() + "-priority ticket from " + author.getName());
+        } else {
+            if (initial.source() == com.bookleaf.portal.domain.DecisionSource.AI) {
+                Ticket updated = commandService.applyAiDecision(ticket, initial.category(), initial.priority(),
+                        initial.rationale());
+                eventPublisher.publish(updated, "TICKET_CREATED",
+                        "New " + initial.priority().label().toLowerCase() + "-priority ticket from "
+                                + author.getName());
+            } else {
+                eventPublisher.publish(ticket, "TICKET_CREATED",
+                        "New " + initial.priority().label().toLowerCase() + "-priority ticket from "
+                                + author.getName());
+            }
+        }
 
         return queryService.summaryFor(ticket.getId());
     }

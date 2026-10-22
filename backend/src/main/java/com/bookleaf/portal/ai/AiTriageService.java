@@ -47,6 +47,18 @@ public class AiTriageService {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * The deterministic classification, with no model involved.
+     *
+     * <p>Used as the instant first answer for a new ticket, so the author never
+     * waits on the model and the request thread is never blocked on it.</p>
+     */
+    public TriageResult classifyWithoutAi(String subject, String description) {
+        TriageResult result = heuristicTriageService.classify(subject, description);
+        return new TriageResult(result.category(), result.priority(), result.rationale(),
+                result.source(), result.signals(), null);
+    }
+
     public TriageResult triage(String subject, String description, String bookLabel, String authorContext) {
         if (!gateway.isAiEnabled()) {
             TriageResult fallback = heuristicTriageService.classify(subject, description);

@@ -3,14 +3,21 @@
 
 Usage:  python3 scripts/measure_triage.py [base-url]
 
-Requires the portal to be running with an AI provider configured.
+Triage runs in the background by default, so a ticket is created immediately with
+the deterministic classification and refined by the AI a moment later. This
+script waits for that refinement and measures the *final* answer.
+
+Set TRIAGE_ASYNC=false on the server (app.ai.triage-async=false) to measure the
+synchronous path instead.
 """
 import json
+import os
 import sys
 import time
 import urllib.request
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/api/v1"
+WAIT_SECONDS = int(os.environ.get("WAIT_SECONDS", "90"))
 
 CASES = [
     ("Royalty payment not received for 6 months",
@@ -57,6 +64,16 @@ def call(method, path, token=None, payload=None):
         return json.loads(response.read())
 
 
+def wait_for_refinement(token, ticket_id, deadline):
+    """Polls until the background AI refinement has landed (or we give up)."""
+    while time.time() < deadline:
+        detail = call("GET", f"/author/tickets/{ticket_id}", token)
+        if detail["ticket"]["categorySource"] == "AI":
+            return detail["ticket"]
+        time.sleep(1.5)
+    return None
+
+
 def main():
     auth = call("POST", "/auth/login", payload={"email": "ananya.reddy@email.com", "password": "Author@1234"})
     token = auth["accessToken"]
@@ -65,22 +82,33 @@ def main():
           f"(ai enabled: {meta['aiEnabled']})\n")
 
     category_hits = priority_hits = 0
+    refined = 0
     started = time.time()
     for subject, description, expected_category, expected_priority in CASES:
         created = call("POST", "/author/tickets", token, {
             "subject": subject, "description": description,
         })
-        category_ok = created["category"] == expected_category
-        priority_ok = created["priority"] == expected_priority
+        # The ticket already carries the deterministic classification; wait for
+        # the AI to refine it.
+        final = wait_for_refinement(token, created["id"], time.time() + WAIT_SECONDS)
+        if final is None:
+            final = created
+        else:
+            refined += 1
+
+        category_ok = final["category"] == expected_category
+        priority_ok = final["priority"] == expected_priority
         category_hits += category_ok
         priority_hits += priority_ok
         mark = lambda ok: "ok  " if ok else "MISS"
         print(f"  {mark(category_ok)} {mark(priority_ok)} "
               f"expected {expected_category}/{expected_priority}  "
-              f"got {created['category']}/{created['priority']} ({created['categorySource']})")
+              f"got {final['category']}/{final['priority']} ({final['categorySource']})")
+
     total = len(CASES)
     print(f"\n  category accuracy : {category_hits}/{total} ({category_hits * 100 // total}%)")
     print(f"  priority accuracy : {priority_hits}/{total} ({priority_hits * 100 // total}%)")
+    print(f"  refined by the AI : {refined}/{total}")
     print(f"  elapsed           : {time.time() - started:.1f}s")
 
 

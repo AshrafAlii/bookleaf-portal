@@ -111,7 +111,13 @@ production — the field is genuinely not applicable yet.
 }
 ```
 
-`201` with the created ticket, including the automatic `category` and `priority`:
+`201` with the created ticket, including the automatic `category` and `priority`.
+
+Classification happens twice: the response carries the **deterministic** classification
+immediately (so the request never waits on the model), and the AI refines it in the background a
+moment later. When the refinement lands, the ticket is updated and an `AI_CLASSIFIED` event is
+published on the SSE stream. Set `app.ai.triage-async=false` to classify synchronously and get the
+AI's answer in the response instead.
 
 ```json
 {

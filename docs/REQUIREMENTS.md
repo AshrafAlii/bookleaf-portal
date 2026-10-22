@@ -60,6 +60,7 @@ listed at the bottom.
 | D2 | API keys in environment variables, never hardcoded or exposed to the frontend | ✅ | `AppProperties` reads `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` from the environment. Nothing sensitive is in the jar. The frontend only ever sees the provider *name* via `/api/v1/meta`. Grep the repo to confirm. |
 | D3 | Graceful degradation — tickets still created when the AI is down, admins can reply manually | ✅ | `AiUnavailableException` → heuristic classification → ticket created with source `HEURISTIC`; draft returns `{available:false, note}` rather than a 500. Covered by tests and verified in the container with no key at all. |
 | D4 | Cost awareness — not sending the entire ticket history + KB on every call | ✅ | KB retrieved (537 of 1,456 tokens). One triage call for two decisions. Capped output. Content-addressed cache (36 of 71 calls served from cache in the measurement run). Every call logged with tokens. |
+| D6 | *(added)* The AI must not make the app unusable | ✅ | Classification runs on a background thread; the AI gateway allows one call at a time; Ollama gets a low-memory configuration and a 1.9 GB model option. Raising a ticket returns in milliseconds regardless of the model. |
 | D5 | Model choice justified briefly in the documentation | ✅ | README → *Model choice*: small task, grounded prompt, provider-neutral gateway, per-job model override. Plus the free-local-Llama path. |
 
 ## Knowledge Base

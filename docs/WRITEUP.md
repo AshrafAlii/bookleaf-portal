@@ -58,22 +58,31 @@ The measured baseline for the deterministic fallback is **10/10 category, 8/10 p
 rules alone are competitive, which is what makes the fallback a genuine safety net rather than a
 straw man.
 
-**2. Graceful degradation, as a designed path rather than a catch-all.** If the provider is down,
+**2. The AI never blocks the app.** This came directly from the user experience: on an 8 GB
+machine running a local model, raising a ticket froze the page for ten seconds and pushed the whole
+machine into swap. Two changes fixed it — the ticket is now created instantly with the
+deterministic classification and refined by the AI on a background thread, and the AI gateway
+allows only one call at a time so a second request can never ask the model to hold two copies of
+its context in RAM. The measured effect: the AI's resident memory went from 4.2 GB to 2.0 GB (a
+smaller model), swap usage from 6.9 GB to 2.2 GB, and the ticket-creation response from ~13
+seconds to under 100 ms. The AI classification still lands — it just lands without blocking anyone.
+
+**3. Graceful degradation, as a designed path rather than a catch-all.** If the provider is down,
 rate limited or simply not configured, the ticket is still created, the fallback classifier
 decides the category and priority (and says so — the UI marks it *Fallback*), and the admin writes
 the reply by hand. The failure is counted and visible in the AI usage panel. AI is an accelerant,
 never a gate.
 
-**3. Correctness of access control.** Authors only ever see their own data, enforced in the query
+**4. Correctness of access control.** Authors only ever see their own data, enforced in the query
 layer rather than by filtering responses. A ticket belonging to another author returns 404, not
 403, so an author cannot probe for the existence of other authors' tickets. Internal notes are
 filtered server side — the author-facing query never selects them at all.
 
-**4. Real-time, genuinely real-time.** The brief says an author should see an admin reply without
+**5. Real-time, genuinely real-time.** The brief says an author should see an admin reply without
 refreshing. Server-Sent Events, with the authorisation decision made at publication time so an
 author's stream only carries their own tickets.
 
-**5. The queue works at backlog scale.** The brief says the most urgent and oldest unresolved
+**6. The queue works at backlog scale.** The brief says the most urgent and oldest unresolved
 tickets should be easy to spot, but an ops team handling a hundred tickets a day needs more than
 that: bulk actions to triage, assign and close a batch in one go, and saved views for the filters
 they use every day. Both were added after the first end-to-end pass, because working the queue by

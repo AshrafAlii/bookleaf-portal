@@ -55,14 +55,23 @@ public final class Prompts {
             PRODUCTION_UPDATES      -> MEDIUM
             GENERAL_INQUIRY         -> LOW
 
-            STEP 3 — escalate ONLY when the author states a concrete fact.
-            Escalate to CRITICAL when the author says a payment is overdue, unpaid or missing
-              AND gives a period of time or a number of copies
-              (for example: "6 months", "two quarters", "never received", "not been paid since March").
-            Escalate to HIGH when the author says the book is late, stuck, unavailable or defective
-              AND gives a period of time or states they cannot buy or read it
-              (for example: "3 weeks", "still in typesetting", "cannot buy it", "arrived broken").
-            Otherwise keep the default from STEP 2. Do not escalate on tone, politeness, length or anger.
+            STEP 3 — work through the escalation checklist. Each line is an AND-condition:
+            every part of a line must be true for that line to apply.
+
+            ESCALATE TO CRITICAL when ALL THREE hold:
+              1. the ticket is about money (a royalty, a payout, a payment), AND
+              2. the author says it is overdue, unpaid, missing or "not been credited", AND
+              3. the author gives a period of time or a number of copies
+                 ("6 months", "two quarters", "never received", "not been paid since March").
+
+            ESCALATE TO HIGH when BOTH hold:
+              1. the ticket is about a book that is late, stuck, unavailable or defective, AND
+              2. the author gives a period of time or says they cannot buy or read it
+                 ("3 weeks", "still in typesetting", "cannot buy it", "arrived broken").
+
+            If no line applies, keep the STEP 2 default. Do not escalate for tone,
+            politeness, length or anger.
+
             ISBN_METADATA and PRINTING_QUALITY stay HIGH even without those extra facts —
             BookLeaf policy escalates ISBN errors and defective copies by default.
 

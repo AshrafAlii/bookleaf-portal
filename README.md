@@ -154,6 +154,8 @@ All configuration is environment driven; nothing sensitive is compiled in. Copy
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | empty | Empty ⇒ the portal runs in deterministic fallback mode with no outbound calls. |
 | `OPENAI_BASE_URL` | `https://api.openai.com` | Point at Ollama (`http://localhost:11434`) or any OpenAI-compatible endpoint. |
 | `AI_PROVIDER` | `auto` | `auto` picks whichever key is present; `anthropic`, `openai` or `none` to force one. |
+| `AI_MAX_CONCURRENT_CALLS` | `1` | How many LLM calls run at once. Keep at 1 for a self-hosted model. |
+| `AI_TRIAGE_ASYNC` | `true` | Classify in the background so raising a ticket never blocks on the model. |
 | `AI_KB_TOP_SECTIONS` | `3` | How many knowledge-base sections are retrieved per draft. |
 | `CORS_ALLOWED_ORIGINS` | localhost:5173 | Only needed if the SPA is served from a different origin. |
 
@@ -270,6 +272,10 @@ bookleaf/
 **A single deployable.** The SPA is compiled into the Spring Boot jar. One origin means no CORS
 configuration, cookies work unchanged, and there is no second service to keep alive.
 
+**The LLM never blocks a request.** Ticket classification is refined on a background thread
+(`AsyncTriageService`), and the AI gateway allows only one call at a time. Both exist for the same
+reason: a slow model must not be able to exhaust the request thread pool or the machine's memory.
+
 **Transactions are kept away from the LLM.** The ticket services are split three ways:
 
 - `TicketCommandService` — owns every write, each in a short transaction.
@@ -343,15 +349,48 @@ The system prompt states the grounding rule explicitly:
 This is why drafts contain real numbers (*“your ₹3,570 pending royalty”*) rather than
 *“your royalty is being processed”*, and why they own mistakes directly when BookLeaf is at fault.
 
+### Classification never blocks the request
+
+A ticket is classified **twice**: instantly with the deterministic rules, then refined by the AI in
+the background.
+
+```
+author submits  ──▶  ticket created + returned instantly (deterministic classification)
+                          │
+                          └──▶ background: AI refines category/priority
+                                        └──▶ ticket updated + audit event + live SSE event
+```
+
+This matters more than it sounds. A self-hosted model can take ten seconds to answer, and a
+synchronous call would hold a request thread for those ten seconds — which means the author's
+form appears to hang and the server's thread pool drains. With the background refinement the
+author gets their ticket immediately and the AI classification lands a moment later, pushed to the
+admin queue over the same SSE stream the rest of the app uses.
+
+The AI executor is deliberately **single-threaded with a bounded queue**: a second concurrent
+request would need its own copy of the model's context in RAM. Work queues up behind one thread,
+and if the queue overflows the refinement is dropped and the ticket keeps its deterministic
+classification — which is a perfectly good answer.
+
+Set `app.ai.triage-async=false` to classify synchronously instead. That is the better behaviour
+with a fast hosted model, and the one to use if you want the AI classification in the response
+itself.
+
 ### Measured behaviour
 
 Accuracy was measured against a labelled set of ten tickets (covering all six categories and all
 four priorities) with `scripts/measure_triage.py`:
 
-| Provider | Category | Priority | Cost per ticket | Notes |
+| Provider | Category | Priority | Cost per ticket | Resident RAM |
 |---|---|---|---|---|
-| **Llama 3.1 8B** (Ollama, free and local) | **10/10** | **10/10** | ~735 prompt + ~55 completion tokens | The model the app was tuned against |
-| **Heuristic fallback** (no AI at all) | **10/10** | 8/10 | 0 tokens, ~0 ms | The rules BookLeaf's policy implies |
+| **Llama 3.1 8B** (Ollama, local) | **10/10** | **10/10** | ~735 prompt + ~55 completion tokens | ~4.2 GB |
+| **Qwen 2.5 3B** (Ollama, local) | **10/10** | 8/10 | ~735 prompt + ~55 completion tokens | ~2.0 GB |
+| **Heuristic fallback** (no AI at all) | **10/10** | 8/10 | 0 tokens, ~0 ms | none |
+| **Claude Haiku / gpt-4o-mini** (hosted) | — | — | — | none (remote) |
+
+The small model is two thirds cheaper in memory and slightly less accurate on the escalation step;
+a hosted model is better on both counts and costs nothing locally. The numbers come from the
+development machine, so they are indicative rather than a benchmark.
 
 Prompt cost, measured from the usage log:
 
@@ -434,16 +473,23 @@ OpenAI-compatible API, so the existing OpenAI adapter talks to it with no code c
 
 ```bash
 brew install ollama
-ollama serve
-ollama pull llama3.1          # ~5 GB, runs fine on an 8 GB Apple Silicon machine
+./scripts/ollama-tuned.sh     # starts Ollama tuned for a small machine
+ollama pull qwen2.5:3b        # 1.9 GB — the low-memory choice
 ```
 
 ```bash
 # .env
 OPENAI_API_KEY=ollama
 OPENAI_BASE_URL=http://localhost:11434
-OPENAI_MODEL=llama3.1
+OPENAI_MODEL=qwen2.5:3b
 ```
+
+> **On a machine with 8 GB of RAM**, use `./scripts/ollama-tuned.sh` rather than `ollama serve`.
+> Ollama's defaults keep a 4.9 GB model resident for five minutes after the last request, which on
+> top of an IDE, a database and two JVMs pushes macOS into swap and everything starts to lag. The
+> script frees the model shortly after use, serves one request at a time and uses a smaller context
+> window. Combined with the 1.9 GB model and the background classification, the AI stops
+> competing with the rest of the machine for memory.
 
 **2. A free cloud tier.** Google Gemini (`gemini-2.0-flash`) and OpenRouter's `:free` models both
 have free tiers and both speak the OpenAI chat-completions format, so they work with the same
@@ -588,7 +634,7 @@ do not close idle connections.
 ## Testing
 
 ```bash
-cd backend && mvn test       # 51 backend tests
+cd backend && mvn test       # 54 backend tests
 cd frontend && npm test      # 13 frontend tests
 ```
 
@@ -596,7 +642,7 @@ The integration tests switch the AI layer off (`app.ai.provider=none`) so the su
 on an external service — it stays fast and deterministic, and exercises the fallback path. The AI
 prompt and parsing logic are covered separately by `AiTriageServiceTest` with a stubbed gateway.
 
-Backend — 51 tests, all passing:
+Backend — 54 tests, all passing:
 
 | Suite | What it covers |
 |---|---|
@@ -604,6 +650,7 @@ Backend — 51 tests, all passing:
 | `AuthorTicketApiTest` | Auto-triage on creation, authors only seeing their own tickets, cross-author access returning 404, admin routes returning 403, a ticket cannot reference another author's book, dashboard aggregation, book scoping |
 | `AdminTicketApiTest` | Queue listing and filtering, unknown filter values returning 400, category/priority overrides, replies reaching the author, **internal notes never reaching the author**, status audit trail, assignment, graceful draft degradation, dashboard stats |
 | `AdminBulkActionsApiTest` | Bulk actions applying to every selected ticket, per-ticket audit events, unchanged tickets left alone, bulk notes staying internal, empty/no-action requests rejected, authors being blocked, and the saved-filter lifecycle including duplicate names and per-admin privacy |
+| `AsyncTriageServiceTest` | The background refinement running off the caller's thread, the ticket being updated and an event published when the AI disagrees, and the deterministic classification standing when the provider is unavailable |
 | `AiTriageServiceTest` | The AI path with a stubbed gateway: valid output parsed, markdown-fenced JSON parsed, unknown category falling back, unparseable output falling back, provider outage falling back, no provider falling back |
 | `HeuristicTriageServiceTest` | The fallback classifier against each of the six categories and the priority rubric |
 | `KnowledgeBaseServiceTest` | Knowledge-base parsing, retrieval relevance, and that retrieved context is smaller than the whole KB |
