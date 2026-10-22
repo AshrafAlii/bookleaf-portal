@@ -25,7 +25,7 @@ const ADMIN_NAV: NavItem[] = [
 ]
 
 export function AppLayout({ children }: { children?: ReactNode }) {
-  const { user, signOut } = useAuth()
+  const { user, signOut, switchAccount } = useAuth()
   const navigate = useNavigate()
   const [live, setLive] = useState(false)
 
@@ -76,6 +76,19 @@ export function AppLayout({ children }: { children?: ReactNode }) {
               <p className="text-xs text-ink-500">{user?.email}</p>
             </div>
 
+            <button
+              type="button"
+              onClick={() => {
+                // Signs out this tab only — other tabs keep their session, so an
+                // author window and an admin window can be open side by side.
+                switchAccount()
+                navigate('/login', { replace: true })
+              }}
+              title="Sign out of this tab only"
+              className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm font-medium text-ink-700 hover:bg-ink-50"
+            >
+              Switch account
+            </button>
             <button
               type="button"
               onClick={async () => {

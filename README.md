@@ -176,6 +176,24 @@ something to show immediately.
 
 ## What is implemented
 
+### Two accounts at once
+
+The author portal and the admin portal can be open side by side in the same browser — which is the
+best way to see the real-time feature work.
+
+| Tab | How it gets its own session |
+|---|---|
+| **Tab 1** | Sign in normally as the author. |
+| **Tab 2** | Open the app, click **Switch account** in the header, then sign in as the admin. |
+
+Each tab keeps its own refresh token in `sessionStorage` (scoped to the tab) alongside the shared
+httpOnly cookie, so the two sessions never collide: a tab signed in as an author stays an author
+even when another tab signs in as an admin, and an expiring access token in one tab refreshes
+against *its own* session rather than the other tab's.
+
+**Switch account** signs out that tab only and leaves other tabs signed in. **Sign out** clears the
+shared cookie as well, ending every session in the browser.
+
 ### Author portal
 
 - **Login** — email and password. Access token in memory, refresh token in an httpOnly cookie.
@@ -544,6 +562,10 @@ do not close idle connections.
 - **Stateless JWT.** A 30-minute access token is sent in the `Authorization` header; a 7-day
   refresh token lives in an httpOnly, `SameSite=Strict` cookie that JavaScript cannot read. The
   token type claim stops a refresh token being replayed as an access token.
+- **Tab-scoped sessions.** The refresh token is also returned in the login response, and the client
+  keeps a copy in `sessionStorage`, which is scoped to a single tab. That is what lets an author
+  session and an admin session run side by side without one tab stealing the other's session. The
+  httpOnly cookie remains the shared fallback for a cold page load.
 - **The access token is never stored in `localStorage`** — it is held in memory, so an XSS bug
   cannot exfiltrate it from persistent storage.
 - **Role-based access control.** `/api/v1/admin/**` requires `ROLE_ADMIN`; every other API route
@@ -566,7 +588,7 @@ do not close idle connections.
 ## Testing
 
 ```bash
-cd backend && mvn test       # 50 backend tests
+cd backend && mvn test       # 51 backend tests
 cd frontend && npm test      # 13 frontend tests
 ```
 
@@ -574,7 +596,7 @@ The integration tests switch the AI layer off (`app.ai.provider=none`) so the su
 on an external service — it stays fast and deterministic, and exercises the fallback path. The AI
 prompt and parsing logic are covered separately by `AiTriageServiceTest` with a stubbed gateway.
 
-Backend — 50 tests, all passing:
+Backend — 51 tests, all passing:
 
 | Suite | What it covers |
 |---|---|

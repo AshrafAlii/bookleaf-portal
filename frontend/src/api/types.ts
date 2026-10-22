@@ -28,6 +28,8 @@ export interface AuthResponse {
   accessToken: string
   tokenType: string
   expiresInSeconds: number
+  /** Long-lived token; also set as an httpOnly cookie. The client keeps a tab-scoped copy. */
+  refreshToken: string
   user: UserSummary
 }
 

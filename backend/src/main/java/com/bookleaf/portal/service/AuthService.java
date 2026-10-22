@@ -85,10 +85,18 @@ public class AuthService {
                 author == null ? null : author.getId());
 
         writeRefreshCookie(response, refreshToken);
-        return new AuthResponse(accessToken, "Bearer", jwtService.accessTokenSeconds(),
+        return new AuthResponse(accessToken, "Bearer", jwtService.accessTokenSeconds(), refreshToken,
                 toSummary(user, author));
     }
 
+    /**
+     * Redeems a refresh token for a new access token.
+     *
+     * <p>The token may arrive in the request body (a tab keeping its own copy) or in the
+     * httpOnly cookie (the shared session). The body wins when both are present, so a tab
+     * signed in as one account is never switched to another account's session by a
+     * different tab's refresh.</p>
+     */
     @Transactional(readOnly = true)
     public AuthResponse refresh(String refreshToken, HttpServletResponse response) {
         Claims claims = jwtService.parse(refreshToken, JwtService.TYPE_REFRESH);
@@ -109,7 +117,7 @@ public class AuthService {
                 user.getRole().name(), author == null ? null : author.getId());
 
         writeRefreshCookie(response, rotatedRefreshToken);
-        return new AuthResponse(accessToken, "Bearer", jwtService.accessTokenSeconds(),
+        return new AuthResponse(accessToken, "Bearer", jwtService.accessTokenSeconds(), rotatedRefreshToken,
                 toSummary(user, author));
     }
 

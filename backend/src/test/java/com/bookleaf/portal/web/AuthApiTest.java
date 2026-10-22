@@ -22,8 +22,38 @@ class AuthApiTest extends IntegrationTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                // The refresh token is returned as well as set as a cookie, so a
+                // browser tab can keep its own copy and run two accounts at once.
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
                 .andExpect(jsonPath("$.user.role").value("AUTHOR"))
                 .andExpect(jsonPath("$.user.authorCode").value("AUTH001"));
+    }
+
+    @Test
+    @DisplayName("a refresh token in the body takes precedence over the shared cookie")
+    void bodyTokenWinsOverCookie() throws Exception {
+        String authorRefresh = json(mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                java.util.Map.of("email", AUTHOR_EMAIL, "password", PASSWORD))))
+                .andReturn()).path("refreshToken").asText();
+
+        // Sign in as the admin in the same session, so the cookie now holds the
+        // admin's refresh token.
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                java.util.Map.of("email", ADMIN_EMAIL, "password", PASSWORD))))
+                .andExpect(status().isOk());
+
+        // Refreshing with the author's own token must still return the author.
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                java.util.Map.of("refreshToken", authorRefresh))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value(AUTHOR_EMAIL))
+                .andExpect(jsonPath("$.user.role").value("AUTHOR"));
     }
 
     @Test

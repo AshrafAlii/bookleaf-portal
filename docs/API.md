@@ -34,9 +34,17 @@ Interactive documentation: `/swagger-ui.html` · OpenAPI JSON: `/v3/api-docs`
 
 `401` when the email or password is wrong — the message is identical in both cases.
 
+The response also carries `refreshToken`. The client keeps a copy in `sessionStorage` (scoped to
+the browser tab) so two tabs can hold two different accounts at once; the httpOnly cookie remains
+the shared fallback.
+
 ### `POST /auth/refresh` — public
 
-Redeems the refresh cookie for a new access token. Rotates the cookie.
+Redeems a refresh token for a new access token and rotates it.
+
+The token may be sent in the request body (a tab keeping its own copy) or in the httpOnly cookie
+(the shared session). **The body wins** when both are present, so a tab signed in as one account
+is never switched to another account's session by a different tab's refresh.
 
 ### `POST /auth/logout` — any
 

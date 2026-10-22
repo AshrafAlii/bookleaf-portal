@@ -48,9 +48,11 @@ public class AuthController {
     public AuthResponse refresh(@CookieValue(name = AuthService.REFRESH_COOKIE, required = false) String cookieToken,
                                 @RequestBody(required = false) RefreshRequest body,
                                 HttpServletResponse response) {
-        String token = cookieToken != null && !cookieToken.isBlank()
-                ? cookieToken
-                : (body == null ? null : body.refreshToken());
+        // The body wins: a tab that keeps its own refresh token must not be
+        // handed another tab's session by the shared cookie.
+        String token = body != null && body.refreshToken() != null && !body.refreshToken().isBlank()
+                ? body.refreshToken()
+                : cookieToken;
         if (token == null || token.isBlank()) {
             throw com.bookleaf.portal.exception.ApiException.unauthorized(
                     "No refresh token was supplied. Please sign in again.");

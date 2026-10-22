@@ -27,10 +27,14 @@ public final class AuthDtos {
 
     /**
      * @param expiresInSeconds lifetime of the access token; the client refreshes before it elapses
+     * @param refreshToken      the long-lived token. It is also set as an httpOnly cookie, but it is
+     *                          returned here as well so a browser tab can keep its own copy — that is
+     *                          what lets an author session and an admin session be open side by side.
      */
     public record AuthResponse(String accessToken,
                                 String tokenType,
                                 long expiresInSeconds,
+                                String refreshToken,
                                 UserSummary user) {
     }
 
