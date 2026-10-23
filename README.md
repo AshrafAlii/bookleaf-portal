@@ -21,6 +21,7 @@ grounded in BookLeaf's own policy.
 - [Screenshots](#screenshots)
 - [Tech stack](#tech-stack)
 - [Quick start](#quick-start)
+- [Live demo](#live-demo)
 - [Demo credentials](#demo-credentials)
 - [What is implemented](#what-is-implemented)
 - [Architecture](#architecture)
@@ -160,6 +161,24 @@ All configuration is environment driven; nothing sensitive is compiled in. Copy
 | `CORS_ALLOWED_ORIGINS` | localhost:5173 | Only needed if the SPA is served from a different origin. |
 
 ---
+
+## Live demo
+
+**https://bookleaf-portal-figx.onrender.com**
+
+Deployed on Render (free tier) with managed PostgreSQL, running the same image as local (`Dockerfile`).
+Sign in with the credentials below — both accounts can be open side by side in the same browser.
+
+| Check | How |
+|---|---|
+| Health | `GET /actuator/health` → `{"status":"UP"}` |
+| Real-time | Open a ticket detail in one tab, act on it in another — the SSE badge updates instantly |
+| AI | Admin dashboard → **Test the AI connection** → *"Reachable in ~200 ms."* (Groq `qwen/qwen3.8-27b` via the OpenAI-compatible adapter) |
+
+Two notes about the free tier: the instance sleeps after ~15 minutes of inactivity (the first
+request then takes ~40 seconds to wake), and Render retires free PostgreSQL databases after
+~30 days — if the database is ever recreated, the seed restores the full demo data automatically
+on startup.
 
 ## Demo credentials
 
